@@ -1,0 +1,2008 @@
+<!doctype html>
+<html lang="en-GB" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bitcoin Batch Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300..800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root {
+  color-scheme: dark;
+  --page: #0a0a0a;
+  --surface: rgba(12, 14, 24, 0.72);
+  --surface-solid: #0f121c;
+  --surface-raised: #151927;
+  --border: rgba(255, 255, 255, 0.10);
+  --hover: rgba(255, 255, 255, 0.08);
+  --ink: #f4f4f6;
+  --ink-2: #b9bbc7;
+  --ink-3: #868a9b;
+  --grid: #232736;
+  --axis: #3a3f52;
+  --accent: #8756ff;
+  --accent-2: #0000fe;
+  --focus: #a58bff;
+  --warn: #fab219;
+  --good: #0ca30c;
+  --critical: #d03b3b;
+  --k-change: #3987e5;
+  --k-deposit: #d95926;
+  --k-plain: #199e70;
+  --k-donation: #c98500;
+  --k-writeoff: #d55181;
+  --k-coinbase: #008300;
+  --k-unspendable: #4a4f63;
+  --k-budget: #9085e9;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: 'Outfit', system-ui, -apple-system, sans-serif;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --page: #f6f6f8;
+  --surface: #ffffff;
+  --surface-solid: #ffffff;
+  --surface-raised: #f1f1f4;
+  --border: rgba(0, 0, 0, 0.08);
+  --hover: rgba(0, 0, 0, 0.05);
+  --ink: #0a0a0a;
+  --ink-2: #474a57;
+  --ink-3: #6e7181;
+  --grid: #e7e7ec;
+  --axis: #c7c8d1;
+  --accent: #6a3df5;
+  --focus: #6a3df5;
+  --k-change: #2a78d6;
+  --k-deposit: #eb6834;
+  --k-plain: #1baf7a;
+  --k-donation: #eda100;
+  --k-writeoff: #e87ba4;
+  --k-coinbase: #008300;
+  --k-unspendable: #c4c6d0;
+  --k-budget: #6250d6;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--page);
+  color: var(--ink);
+  font: 400 15px/1.5 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 340px;
+  background: linear-gradient(135deg, #0000fe, #8756ff);
+  opacity: 0.14;
+  mask-image: linear-gradient(to bottom, #000, transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+:root[data-theme="light"] body::before { opacity: 0.07; }
+.wrap { position: relative; z-index: 1; max-width: 1480px; margin: 0 auto; padding: 28px 16px 64px; }
+header.top { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: flex-end; justify-content: space-between; margin-bottom: 22px; }
+h1 { font-weight: 700; font-size: clamp(26px, 3.2vw, 36px); letter-spacing: -0.01em; margin: 0 0 6px; }
+.lede { color: var(--ink-2); max-width: 760px; margin: 0; }
+.lede code, .note code { font-family: var(--mono); font-size: 0.88em; color: var(--ink); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; max-width: 100%; }
+.toolbar label.inline { max-width: 100%; }
+.toolbar select { max-width: min(100%, 380px); }
+label.inline { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); font-weight: 500; font-size: 13px; }
+select, input[type="number"], input[type="text"] {
+  font: 500 14px/1.2 var(--sans);
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  min-width: 0;
+}
+input[type="number"] { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+select:focus-visible, input:focus-visible, button:focus-visible, canvas:focus-visible, [tabindex]:focus-visible, summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+button {
+  font: 600 14px/1 var(--sans);
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 14px;
+  cursor: pointer;
+}
+button:hover { background: var(--hover); }
+button.primary { border-color: transparent; background: linear-gradient(var(--surface-raised), var(--surface-raised)) padding-box, linear-gradient(135deg, #0000fe, #8756ff) border-box; border: 1px solid transparent; }
+button.icon { padding: 6px 9px; font-size: 13px; color: var(--ink-2); }
+button.link { background: none; border: none; color: var(--ink-2); padding: 4px 0; text-decoration: underline; text-underline-offset: 3px; font-weight: 500; }
+.layout { display: grid; grid-template-columns: minmax(340px, 430px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .layout { grid-template-columns: minmax(0, 1fr); } .layout > .results { order: -1; } }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  margin-bottom: 18px;
+  min-width: 0;
+}
+:root[data-theme="light"] .card { box-shadow: 0 2px 10px rgba(10, 10, 30, 0.06); }
+.card h2 { font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-2); margin: 0 0 12px; }
+.card h3 { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
+.hint { color: var(--ink-3); font-size: 12.5px; margin: 6px 0 0; }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field > span { font-size: 12px; font-weight: 500; color: var(--ink-2); }
+.rows { display: flex; flex-direction: column; gap: 8px; }
+.row { display: grid; gap: 6px; align-items: end; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-raised); }
+.row .field > span { font-size: 11px; }
+.row.out { grid-template-columns: minmax(0, 1.7fr) minmax(0, 0.9fr) minmax(0, 0.9fr) auto; }
+.row.wd { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.75fr) auto; }
+.row .second { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; align-items: end; }
+.row.wd .second { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.row.fee { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+.row .meta { grid-column: 1 / -1; font-size: 11.5px; color: var(--ink-3); }
+.row .meta b { color: var(--ink-2); font-weight: 500; }
+.add { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.status { display: none; gap: 10px; align-items: flex-start; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; border: 1px solid var(--border); background: var(--surface-raised); }
+.status.on { display: flex; }
+.status .icon { flex: none; width: 20px; height: 20px; }
+.status strong { font-weight: 600; }
+.status p { margin: 2px 0 0; color: var(--ink-2); font-size: 13.5px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.check { display: flex; gap: 10px; align-items: center; margin-top: 12px; font-weight: 500; font-size: 14px; cursor: pointer; }
+.check input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; backdrop-filter: blur(10px); }
+.tile .label { font-size: 12.5px; color: var(--ink-2); font-weight: 500; }
+.tile .value { font-size: 24px; font-weight: 600; margin-top: 4px; letter-spacing: -0.01em; }
+.tile .sub { font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
+.tile .flag { display: flex; gap: 6px; align-items: center; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-top: 6px; }
+.tile .flag svg { flex: none; width: 14px; height: 14px; }
+.scrub { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto auto; gap: 10px; align-items: center; }
+.scrub input[type="range"] { width: 100%; accent-color: var(--accent); }
+.scrub .pos { font-family: var(--mono); font-size: 13px; color: var(--ink-2); min-width: 120px; text-align: right; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; }
+@media (max-width: 1300px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--ink-2); margin: 2px 0 10px; }
+.legend span { display: inline-flex; align-items: center; }
+.legend .ring { width: 10px; height: 10px; border-radius: 3px; border: 2px solid var(--k-coinbase); margin-right: 6px; }
+canvas.map { width: 100%; display: block; cursor: crosshair; }
+.detail dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 7px 14px; margin: 0; font-size: 13.5px; }
+.detail dt { color: var(--ink-3); }
+.detail dd { margin: 0; font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.detail .kind { display: inline-block; font-family: var(--sans); font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-raised); }
+.gate { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin-top: 14px; }
+.gate .bar { position: relative; height: 10px; border-radius: 5px; background: var(--grid); overflow: hidden; }
+.gate .bar i { position: absolute; inset: 0 auto 0 0; border-radius: 5px; background: var(--k-budget); }
+.gate .bar b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink-2); }
+.gate .cap { font-size: 12px; color: var(--ink-3); display: flex; justify-content: space-between; gap: 10px; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart .tick { fill: var(--ink-3); font: 500 11px var(--mono); }
+.chart .grid { stroke: var(--grid); stroke-width: 1; shape-rendering: crispEdges; }
+.chart .base { stroke: var(--axis); stroke-width: 1; shape-rendering: crispEdges; }
+.chart .ref { stroke: var(--ink-3); stroke-width: 1; shape-rendering: crispEdges; }
+.chart .reflabel { fill: var(--ink-2); font: 500 11px var(--sans); }
+.chart .cross { stroke: var(--ink-2); stroke-width: 1; shape-rendering: crispEdges; }
+.chart .picked { stroke: var(--ink-3); stroke-width: 1; shape-rendering: crispEdges; }
+.chart .sel { fill: var(--hover); }
+.tip {
+  position: fixed;
+  z-index: 50;
+  pointer-events: none;
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 11px;
+  font-size: 12.5px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  min-width: 160px;
+  max-width: 300px;
+  display: none;
+}
+.tip .t { color: var(--ink-3); font-size: 11.5px; margin-bottom: 4px; }
+.tip .r { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.tip .r i { height: 2px; border-radius: 1px; }
+.tip .r b { font-family: var(--mono); font-weight: 600; font-variant-numeric: tabular-nums; }
+.tip .r span { color: var(--ink-2); }
+.tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; max-height: 460px; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { padding: 7px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--border); }
+th { position: sticky; top: 0; background: var(--surface-solid); color: var(--ink-2); font-weight: 600; font-size: 11.5px; letter-spacing: 0.03em; }
+td { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+td.l, th.l { text-align: left; }
+td.k { font-family: var(--sans); color: var(--ink-2); }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--hover); }
+tbody tr.on { background: rgba(135, 86, 255, 0.16); }
+details { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
+summary { cursor: pointer; font-weight: 600; }
+.note { color: var(--ink-2); font-size: 13.5px; }
+.note ul { padding-left: 18px; margin: 8px 0; }
+.note li { margin: 4px 0; }
+.busy .results-body { opacity: 0.55; transition: opacity 120ms; }
+.empty { color: var(--ink-3); font-size: 13.5px; padding: 18px 0; text-align: center; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) {
+  .row.wd .second { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fields { grid-template-columns: minmax(0, 1fr); }
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .toolbar label.inline { width: 100%; }
+  .toolbar select { flex: 1; }
+  .scrub { grid-template-columns: auto auto minmax(0, 1fr); }
+  .scrub .pos { grid-column: 1 / -1; text-align: left; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Bitcoin Batch Simulator</h1>
+      <p class="lede">Fill a vault with outputs, burn withdrawals against it, set the fee rate, and step through the batches the cluster derives. The rules port a bridge's batch derivation, as its Rust implementation builds it.</p>
+    </div>
+    <div class="toolbar">
+      <label class="inline">Scenario
+        <select id="preset" aria-label="Scenario preset"></select>
+      </label>
+      <button id="share" type="button">Copy link</button>
+      <button id="theme" type="button" aria-label="Switch colour theme">Light</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <section aria-label="Scenario">
+      <div class="card">
+        <h2>Gateway and chain</h2>
+        <div class="fields">
+          <label class="field"><span>Minimum payout (sats)</span><input type="number" id="minPayout" min="1" step="1"></label>
+          <label class="field"><span>Default deduction (sats)</span><input type="number" id="deduction" min="0" step="1"></label>
+          <label class="field"><span>First scanned height</span><input type="number" id="start" min="0" step="1"></label>
+          <label class="field"><span>Last height to simulate</span><input type="number" id="horizon" min="1" step="1"></label>
+          <label class="field"><span>Blocks from anchor to batch</span><input type="number" id="windowDelay" min="0" step="1"></label>
+        </div>
+        <p class="hint">A deposit under the minimum payout is written off, and it funds the fee budget when it holds at least 5,800 sats. A burn must be at least the minimum payout plus its deduction. "Blocks from anchor to batch" is how long a batch window stays open: 0 matches the devnet, and about 3 matches mainnet, where median time trails the clock by about an hour.</p>
+      </div>
+
+      <div class="card">
+        <h2>Fee rate</h2>
+        <div class="rows" id="fees"></div>
+        <div class="add"><button type="button" class="primary" id="addFee">Add a fee change</button></div>
+        <label class="check"><input type="checkbox" id="rescues"> Rescue stuck batches</label>
+        <p class="hint">The median fee rate of every block from a height on. A batch pays <code>rate_0</code>: the highest median of the six blocks that end at its anchor. It confirms in the first block whose median is at or below its rate. Every 36 blocks after its anchor, a rescue replaces a batch still waiting, at the market rate, once the market is at least 1 sat/vB above it.</p>
+      </div>
+
+      <div class="card">
+        <h2>Vault outputs</h2>
+        <div class="rows" id="outputs"></div>
+        <div class="add">
+          <button type="button" class="primary" data-add-output="deposit">Add deposits</button>
+          <button type="button" data-add-output="plain">Add payments</button>
+          <button type="button" data-add-output="donation">Add donations</button>
+          <button type="button" data-add-output="coinbase">Add a coinbase</button>
+        </div>
+        <p class="hint">A row adds "Count" outputs whose values step evenly from the first value to the last. Leave the last value empty for outputs of one value. A coinbase output is spendable from the anchor 99 blocks above its block.</p>
+      </div>
+
+      <div class="card">
+        <h2>Withdrawals</h2>
+        <div class="rows" id="withdrawals"></div>
+        <div class="add"><button type="button" class="primary" id="addWithdrawal">Add withdrawals</button></div>
+        <p class="hint">A row adds "Count" burns whose amounts step evenly from the first amount to the last. Each burn is submitted at a Bitcoin height: "Burns per block" of them at "Start at height", and the next ones "Blocks apart" later. A batch anchored at that height or later can pay them. The gateway gives indices in submission order. An empty deduction takes the default.</p>
+      </div>
+    </section>
+
+    <section aria-label="Simulation" class="results">
+      <div class="status" id="status" role="status">
+        <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2 1.5 17h17L10 2Z" fill="none" stroke="var(--warn)" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 8v4.2M10 14.6v.4" stroke="var(--warn)" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <div><strong id="statusTitle"></strong><p id="statusText"></p></div>
+      </div>
+      <div class="results-body">
+        <div class="tiles" id="tiles"></div>
+
+        <div class="card">
+          <div class="scrub">
+            <button type="button" class="icon" id="prev" aria-label="Previous batch">◀</button>
+            <button type="button" class="icon" id="next" aria-label="Next batch">▶</button>
+            <input type="range" id="slider" min="0" max="0" value="0" aria-label="Batch">
+            <button type="button" class="icon" id="play" aria-label="Play through the batches">Play</button>
+            <div class="pos" id="pos"></div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <h2>Vault outputs at this batch</h2>
+            <div class="legend" id="mapLegend"></div>
+            <canvas class="map" id="map" tabindex="0" aria-label="The outputs the vault holds at this batch, coloured by kind; the selected batch's inputs are ringed"></canvas>
+            <p class="hint" id="mapHint"></p>
+          </div>
+          <div class="card detail">
+            <h2>Batch</h2>
+            <div id="detail"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Batches against the market rate</h3>
+          <div class="legend" id="legendE"></div>
+          <div class="chart" id="chartE"></div>
+        </div>
+        <div class="card">
+          <h3>Vault outputs after each batch</h3>
+          <div class="legend" id="legendA"></div>
+          <div class="chart" id="chartA"></div>
+        </div>
+        <div class="card">
+          <h3>Deductions less fees after each batch</h3>
+          <p class="hint" style="margin:0 0 10px">The deductions of the withdrawals the batches paid, less the fees. A payment fee is what a batch costs without its fill, and a consolidation fee is the rest. Above the break-even line the deductions cover those fees; below it, donations and write-offs pay the difference.</p>
+          <div class="legend" id="legendD"></div>
+          <div class="chart" id="chartD"></div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <h3>Inputs per batch</h3>
+            <div class="legend" id="legendC"></div>
+            <div class="chart" id="chartC"></div>
+          </div>
+          <div class="card">
+            <h3>Fee budget at each anchor</h3>
+            <p class="hint" style="margin:0 0 10px">A paying batch builds only when the budget covers its fee at 100 sat/vB. A fill stops before the budget falls under the consolidation floor plus that fee.</p>
+            <div class="chart" id="chartB"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Every batch</h2>
+          <div class="tablewrap"><table id="table"></table></div>
+        </div>
+
+        <div class="card note">
+          <h2>What the simulator models</h2>
+          <ul>
+            <li>Heights stand in for time. A withdrawal is submitted at a Bitcoin height: its burn lands on Midnight while Bitcoin is at that height, and a batch anchored there or later can pay it. That height is the burn's anchor: the first block whose median time reaches the burn time less a 90-minute lag.</li>
+            <li>A batch window closes a fixed number of blocks after its anchor ("Blocks from anchor to batch"). The cluster derives a batch at each new tip, and only one batch is in flight at a time.</li>
+            <li>An attempt confirms in the first block after its broadcast whose median fee rate is at or below the attempt's rate. Real blocks also take transactions below their median, so this overstates how long a batch waits while fees rise. Pinning by a recipient's child transaction and reorganisations are out of scope.</li>
+            <li>Coins on Midnight are not tracked. Any burn the gateway admits is a withdrawal, whether or not a deposit backs it.</li>
+          </ul>
+          <details>
+            <summary>The rules</summary>
+            <ul>
+              <li><b>Eligible outputs</b>: a selection spends outputs of at least 5,800 sats, and a coinbase output only once the anchor plus one is 100 blocks above its block.</li>
+              <li><b>Input selection</b>: the smallest single output that funds the batch, else the largest outputs first until they fund it. Funding is the net amounts, the fee at 100 sat/vB, and 5,800 sats of change. A batch holds at most 10,000 vB, so 171 inputs with one payout.</li>
+              <li><b>Choosing withdrawals</b>: withdrawals in index order; one that does not fit is skipped, and the next one is tried.</li>
+              <li><b>Building a batch</b>: the budget must cover the chosen batch's fee at 100 sat/vB. At <code>rate_0</code> of 10 sat/vB or less, a paying batch also adds the largest unselected outputs. A size-limited withdrawal, one no 171 outputs fund although the vault's value covers it, does the same at any rate, with no payouts when nothing else is chosen. A fill stops at 10,000 vB or before the budget falls under 1,000,000 sats plus the batch's fee at 100 sat/vB.</li>
+              <li><b>The fee budget</b>: the budget is every donation and write-off of at least 5,800 sats, less the fee of every vault spend. Each anchor adds the deductions of settled burns and of the burns a batch at the anchor may pay.</li>
+              <li><b>Anchors</b>: the base anchor is the later of the last vault spend and the height of the oldest unpaid burn. Anchors step by 3 blocks until one builds.</li>
+              <li><b>The market rate</b>: the market rate at a height is the highest of the six block medians that end there, clamped to 1 to 100 sat/vB. A batch's first attempt pays the market rate at its anchor.</li>
+              <li><b>Rescues</b>: attempt <i>b</i> is evaluated at the anchor plus 36 × <i>b</i> blocks, while the batch is unconfirmed. When the market there is at least 1 sat/vB above the attempt in flight, a rescue pays the market rate. It spends the same inputs and pays the same withdrawals; only its change is smaller. The change already holds the fee at 100 sat/vB, so the budget funds every rescue.</li>
+            </ul>
+          </details>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script type="text/plain" id="engine-source">
+// A port of a bridge's batch derivation for its Bitcoin vault, as its Rust
+// implementation builds it: input selection, consolidation, the fee budget,
+// settlement, and the rescues of a stuck batch. The simulator adds one model of
+// its own: heights stand in for time, a withdrawal is due from the height its
+// burn anchors at, a batch window closes a fixed number of blocks after its
+// anchor, and an attempt confirms in the first block whose median fee rate is
+// at or below its rate.
+
+export const MAX_BATCH_VSIZE = 10_000;
+export const MIN_VAULT_OUTPUT = 5_800;
+export const ANCHOR_STEP = 3;
+export const FEE_WINDOW = 6;
+export const RATE_MAX = 100;
+export const COINBASE_MATURITY = 100;
+export const CONSOLIDATION_FLOOR = RATE_MAX * MAX_BATCH_VSIZE;
+export const CONSOLIDATION_MAX_RATE = 10;
+export const STUCK_BLOCKS = 36;
+export const RELAY_INCREMENT = 1;
+
+// Signed weights of the batch template, measured on a probe transaction: version, locktime, both counts, the segwit flag, the P2TR change,
+// and the 46-byte marker; one key-path P2TR input with a 64-byte signature; one
+// P2WPKH payout.
+const W_FIXED = 442;
+const W_INPUT = 230;
+const W_PAYOUT = 124;
+
+export function vsize(inputs, payouts) {
+  // The output count's CompactSize takes 3 bytes from 253 outputs on.
+  const countBytes = payouts + 2 >= 253 ? 8 : 0;
+  return Math.ceil((W_FIXED + countBytes + W_PAYOUT * payouts + W_INPUT * inputs) / 4);
+}
+
+export const feeMax = (vs) => RATE_MAX * vs;
+const covers = (budget, vs) => budget >= 0 && budget >= feeMax(vs);
+const keepsFloor = (budget, vs) => budget >= 0 && budget >= feeMax(vs) + CONSOLIDATION_FLOOR;
+export const coinbaseMature = (created, height) => height + 1 >= created + COINBASE_MATURITY;
+
+export function rate0(samples) {
+  const highest = samples.length ? Math.max(...samples) : 1;
+  return Math.min(Math.max(highest, 1), RATE_MAX);
+}
+
+// A rescue pays the market once the market is at least RELAY_INCREMENT above
+// the attempt it replaces.
+export function rescueRate(retainedRate, market) {
+  return market >= retainedRate + RELAY_INCREMENT ? market : null;
+}
+
+// The attempts that replace a first attempt anchored at
+// `anchor` at `firstRate`, through `tip`. Attempt b is evaluated at its own
+// height anchor + b × STUCK_BLOCKS, against the market there; `marketAt`
+// returns null where the fee window is not recorded.
+export function rescueAttempts(anchor, firstRate, tip, marketAt) {
+  const attempts = [];
+  let retained = firstRate;
+  for (let b = 1; anchor + b * STUCK_BLOCKS <= tip; b++) {
+    const height = anchor + b * STUCK_BLOCKS;
+    const market = marketAt(height);
+    if (market === null) continue;
+    const rate = rescueRate(retained, market);
+    if (rate === null) continue;
+    attempts.push({ attempt: b, rate, height });
+    retained = rate;
+  }
+  return attempts;
+}
+
+export const keyOf = (u) => `${u.txid}:${u.vout}`;
+
+const byValueTxidVout = (a, b) =>
+  a.value - b.value || (a.txid < b.txid ? -1 : a.txid > b.txid ? 1 : 0) || a.vout - b.vout;
+
+export function isSpendable(u, height) {
+  return u.value >= MIN_VAULT_OUTPUT && (!u.coinbase || coinbaseMature(u.created, height));
+}
+
+export function eligible(utxos, height) {
+  return utxos.filter((u) => isSpendable(u, height)).sort(byValueTxidVout);
+}
+
+function lowerBound(sortedAsc, value) {
+  let lo = 0;
+  let hi = sortedAsc.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sortedAsc[mid].value >= value) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo;
+}
+
+const target = (netSum, vs) => netSum + feeMax(vs) + MIN_VAULT_OUTPUT;
+
+export function selectInputs(sortedAsc, payoutCount, netSum) {
+  const single = vsize(1, payoutCount);
+  if (single <= MAX_BATCH_VSIZE) {
+    const i = lowerBound(sortedAsc, target(netSum, single));
+    if (i < sortedAsc.length) return { inputs: [sortedAsc[i]], vsize: single };
+  }
+  const inputs = [];
+  let sum = 0;
+  for (let i = sortedAsc.length - 1; i >= 0; i--) {
+    inputs.push(sortedAsc[i]);
+    const vs = vsize(inputs.length, payoutCount);
+    if (vs > MAX_BATCH_VSIZE) return null;
+    sum += sortedAsc[i].value;
+    if (sum >= target(netSum, vs)) return { inputs, vsize: vs };
+  }
+  return null;
+}
+
+export function choose(due, pool) {
+  const payouts = [];
+  const skipped = [];
+  let netSum = 0;
+  let funded = null;
+  for (const c of due) {
+    const selection = selectInputs(pool, payouts.length + 1, netSum + c.net);
+    if (!selection) {
+      skipped.push(c.index);
+      continue;
+    }
+    payouts.push(c);
+    netSum += c.net;
+    funded = selection;
+  }
+  return { payouts: funded ? payouts : [], netSum: funded ? netSum : 0, selection: funded, skipped };
+}
+
+// The batch one anchor builds, with the reasons the page reports.
+export function compose(due, pool, budget, rate) {
+  const chosen = choose(due, pool);
+  const info = { skipped: chosen.skipped, rate, budget };
+  if (chosen.selection && !covers(budget, chosen.selection.vsize)) {
+    return { draft: null, info: { ...info, refused: "budget", needed: feeMax(chosen.selection.vsize) } };
+  }
+  let poolSats = 0;
+  for (const u of pool) poolSats += u.value;
+  const sizeLimited = (c) =>
+    poolSats >= c.net + MIN_VAULT_OUTPUT + feeMax(MAX_BATCH_VSIZE) && !selectInputs(pool, 1, c.net);
+  const paysAtLowRate = chosen.selection !== null && rate <= CONSOLIDATION_MAX_RATE;
+  const limited = paysAtLowRate ? [] : due.filter(sizeLimited);
+  if (!paysAtLowRate && limited.length === 0) {
+    if (!chosen.selection) return { draft: null, info: { ...info, refused: "unfunded" } };
+    const { inputs, vsize: vs } = chosen.selection;
+    return { draft: { payouts: chosen.payouts, netSum: chosen.netSum, inputs, vsize: vs, selectionVsize: vs }, info: { ...info, kind: "pays" } };
+  }
+
+  const payouts = chosen.payouts;
+  const inputs = chosen.selection ? [...chosen.selection.inputs] : [];
+  let vs = chosen.selection ? chosen.selection.vsize : 0;
+  const selected = new Set(inputs.map(keyOf));
+  let stop = "pool";
+  for (let i = pool.length - 1; i >= 0; i--) {
+    const u = pool[i];
+    if (selected.has(keyOf(u))) continue;
+    const next = vsize(inputs.length + 1, payouts.length);
+    if (next > MAX_BATCH_VSIZE) {
+      stop = "size";
+      break;
+    }
+    if (!keepsFloor(budget, next)) {
+      stop = "floor";
+      break;
+    }
+    inputs.push(u);
+    selected.add(keyOf(u));
+    vs = next;
+  }
+  let value = 0;
+  for (const u of inputs) value += u.value;
+  const built = payouts.length > 0 || (inputs.length >= 2 && value >= target(chosen.netSum, vs));
+  const kind = payouts.length === 0 ? "consolidation" : paysAtLowRate ? "pays + low-rate fill" : "pays + size-limit fill";
+  const fillInfo = { ...info, kind, stop, filled: inputs.length - (chosen.selection ? chosen.selection.inputs.length : 0), sizeLimited: limited.map((c) => c.index) };
+  if (!built) return { draft: null, info: { ...fillInfo, refused: payouts.length === 0 ? "consolidation-floor" : "unbuilt" } };
+  return { draft: { payouts, netSum: chosen.netSum, inputs, vsize: vs, selectionVsize: chosen.selection ? chosen.selection.vsize : 0 }, info: fillInfo };
+}
+
+// Fee rate of one block from a schedule of { from, rate } steps.
+function rateAt(fees, height) {
+  let rate = fees.length ? fees[0].rate : 1;
+  for (const step of fees) if (step.from <= height) rate = step.rate;
+  return rate;
+}
+
+// Whether a receipt credits the fee budget at `height`.
+export function fundsBudget(r, height) {
+  const kind = r.kind === "donation" || r.kind === "writeoff";
+  return kind && r.value >= MIN_VAULT_OUTPUT && (!r.coinbase || coinbaseMature(r.created, height));
+}
+
+// Classify what the user enters as the monitor does: a deposit under the credited
+// minimum is a write-off.
+export function classify(entry, minPayout) {
+  if (entry.kind === "deposit" && entry.value < minPayout) return "writeoff";
+  return entry.kind;
+}
+
+/**
+ * Run the scenario to the end, one Bitcoin block at a time.
+ *
+ * scenario: {
+ *   start: first scanned height,
+ *   horizon: last height the simulation may reach,
+ *   minPayout: the bitcoin leg's minimum payout (also the credited deposit minimum),
+ *   fees: [{ from, rate }] median fee rate (sat/vB) of each block from `from` on,
+ *   receipts: [{ txid, vout, value, kind, coinbase, created }],
+ *   withdrawals: [{ index, amount, deduction, due }],
+ *   budget0: fee budget the vault already holds at `start` (optional),
+ *   windowDelay: blocks between an anchor and the tip that closes its window (optional, 0),
+ *   rescues: whether stuck batches get rescues (optional, true),
+ * }
+ *
+ * An attempt confirms in the first block after its broadcast whose median fee
+ * rate is at or below the attempt's rate. Only one batch is in flight at a
+ * time.
+ */
+export function simulate(scenario, { maxBatches = 5_000 } = {}) {
+  const { start, minPayout } = scenario;
+  const horizon = scenario.horizon ?? start + 5_000;
+  const windowDelay = Math.max(0, scenario.windowDelay ?? 0);
+  const rescuesOn = scenario.rescues ?? true;
+  const fees = [...scenario.fees].sort((a, b) => a.from - b.from);
+
+  const vault = scenario.receipts.map((r) => ({ ...r, kind: classify(r, minPayout) }));
+  const credits = vault.filter((r) => r.kind === "donation" || r.kind === "writeoff");
+  const refused = [];
+  const withdrawals = [];
+  for (const w of [...scenario.withdrawals].sort((a, b) => a.index - b.index)) {
+    if (w.amount < minPayout + w.deduction) refused.push({ ...w, reason: "below the leg's minimum plus deduction" });
+    else withdrawals.push({ ...w, net: w.amount - w.deduction });
+  }
+
+  const pending = new Map();
+  let nextWithdrawal = 0;
+  let settled = 0;
+  let feesPaid = 0;
+  let lastSpend = null;
+  let nextAnchor = null;
+  let held = null;
+  const batches = [];
+  const paid = new Map();
+  const lastEvent = Math.max(
+    start,
+    ...vault.map((r) => (r.coinbase ? r.created + COINBASE_MATURITY - 1 : r.created)),
+    ...withdrawals.map((w) => w.due),
+    ...fees.map((f) => f.from + FEE_WINDOW - 1),
+  );
+
+  const journalBudget = (height) => {
+    let credit = scenario.budget0 ?? 0;
+    for (const r of credits) if (r.created <= height && fundsBudget(r, height)) credit += r.value;
+    return credit - feesPaid;
+  };
+  const feeWindow = (height) => {
+    if (height - (FEE_WINDOW - 1) < start) return null;
+    const samples = [];
+    for (let h = height - (FEE_WINDOW - 1); h <= height; h++) samples.push(rateAt(fees, h));
+    return samples;
+  };
+  const marketAt = (height) => {
+    const window = feeWindow(height);
+    return window ? rate0(window) : null;
+  };
+  const retainedOf = (batch) => batch.attempts[batch.attempts.length - 1];
+  // Every attempt from scratch through `tip`, as each node derives them again
+  // from its own history after every block.
+  const refreshRescues = (batch, tip) => {
+    if (!rescuesOn) return;
+    const rescues = rescueAttempts(batch.anchor, batch.attempts[0].rate, tip, marketAt);
+    for (const rescue of rescues.slice(batch.attempts.length - 1)) {
+      batch.attempts.push({ ...rescue, broadcastAt: tip });
+    }
+  };
+
+  const settle = (batch, height) => {
+    const { anchor, base, draft, info, pool, atAnchor, budget, journal, dueDeductions } = batch;
+    const attempt = retainedOf(batch);
+    let value = 0;
+    for (const u of draft.inputs) value += u.value;
+    const fee = attempt.rate * draft.vsize;
+    const change = value - draft.netSum - fee;
+    const n = batches.length + 1;
+    const spent = new Set(draft.inputs.map(keyOf));
+    for (let i = vault.length - 1; i >= 0; i--) if (spent.has(keyOf(vault[i]))) vault.splice(i, 1);
+    const changeOutput = {
+      txid: `b${String(n).padStart(5, "0")}`,
+      vout: draft.payouts.length,
+      value: change,
+      kind: "change",
+      coinbase: false,
+      created: height,
+    };
+    vault.push(changeOutput);
+    feesPaid += fee;
+    let waitMax = 0;
+    for (const p of draft.payouts) {
+      settled += p.deduction;
+      pending.delete(p.index);
+      const wait = height - p.due;
+      waitMax = Math.max(waitMax, wait);
+      paid.set(p.index, { batch: n, height, wait });
+    }
+    lastSpend = height;
+    // The fee in four parts at the confirmed rate: the selection that pays the
+    // withdrawals, a fill the size limit requires, a fill a low rate adds, and
+    // how much of all that the rescues added.
+    const fillVbytes = draft.vsize - draft.selectionVsize;
+    const required = info.kind === "consolidation" || info.kind === "pays + size-limit fill";
+    const after = vault.filter((u) => u.created <= height);
+    batches.push({
+      n,
+      derivedAt: batch.derivedAt,
+      baseAnchor: base,
+      anchor,
+      confirmed: height,
+      waited: height - batch.derivedAt - 1,
+      rate0: batch.attempts[0].rate,
+      rate: attempt.rate,
+      attempts: batch.attempts.map((a) => ({ ...a })),
+      kind: info.kind,
+      stop: info.stop ?? null,
+      filled: info.filled ?? 0,
+      skipped: info.skipped,
+      sizeLimited: info.sizeLimited ?? [],
+      inputs: draft.inputs.map((u) => ({ txid: u.txid, vout: u.vout, value: u.value, kind: u.kind })),
+      payouts: draft.payouts.map((p) => ({ index: p.index, net: p.net, deduction: p.deduction, due: p.due })),
+      netSum: draft.netSum,
+      vsize: draft.vsize,
+      selectionVsize: draft.selectionVsize,
+      fee,
+      paymentFee: attempt.rate * draft.selectionVsize,
+      requiredFee: required ? attempt.rate * fillVbytes : 0,
+      optionalFee: info.kind === "pays + low-rate fill" ? attempt.rate * fillVbytes : 0,
+      optionalVbytes: info.kind === "pays + low-rate fill" ? fillVbytes : 0,
+      fillFee: attempt.rate * fillVbytes,
+      rescueFee: (attempt.rate - batch.attempts[0].rate) * draft.vsize,
+      change,
+      changeKey: keyOf(changeOutput),
+      budget,
+      journal,
+      settledBefore: settled - draft.payouts.reduce((s, p) => s + p.deduction, 0),
+      dueDeductions,
+      poolBefore: pool.length,
+      unspendableBefore: atAnchor.length - pool.length,
+      spendableAfter: after.filter((u) => isSpendable(u, height)).length,
+      unspendableAfter: after.filter((u) => !isSpendable(u, height)).length,
+      pendingAfter: pending.size,
+      waitMax,
+    });
+  };
+
+  let tip = start;
+  let stuck = false;
+  let lastAttempt = null;
+  while (tip <= horizon && batches.length < maxBatches) {
+    // The block at `tip` exists: it confirms the attempt in flight if it pays
+    // at least the block's median.
+    if (held && tip > retainedOf(held).broadcastAt && rateAt(fees, tip) <= retainedOf(held).rate) {
+      settle(held, tip);
+      held = null;
+    }
+    while (nextWithdrawal < withdrawals.length && withdrawals[nextWithdrawal].due <= tip) {
+      const w = withdrawals[nextWithdrawal++];
+      pending.set(w.index, w);
+    }
+    if (held) refreshRescues(held, tip);
+
+    if (!held && pending.size) {
+      const known = [...pending.values()];
+      const oldest = Math.min(...known.map((w) => w.due));
+      const base = Math.max(lastSpend ?? -Infinity, Math.max(oldest, start));
+      let anchor = nextAnchor ?? base;
+      for (; anchor <= tip - windowDelay; anchor += ANCHOR_STEP) {
+        const window = feeWindow(anchor);
+        if (!window) continue;
+        const rate = rate0(window);
+        const due = known.filter((w) => w.due <= anchor).sort((a, b) => a.index - b.index);
+        const atAnchor = vault.filter((u) => u.created <= anchor);
+        const pool = eligible(atAnchor, anchor);
+        const journal = journalBudget(anchor);
+        const dueDeductions = due.reduce((s, w) => s + w.deduction, 0);
+        const budget = journal + settled + dueDeductions;
+        const { draft, info } = compose(due, pool, budget, rate);
+        if (draft) {
+          held = { anchor, base, draft, info, pool, atAnchor, budget, journal, dueDeductions, derivedAt: tip, attempts: [{ attempt: 0, rate, height: anchor, broadcastAt: tip }] };
+          refreshRescues(held, tip);
+          break;
+        }
+        lastAttempt = { anchor, rate, budget, pool: pool.length, due: due.map((w) => w.index), ...info };
+      }
+      nextAnchor = held ? null : anchor;
+    }
+
+    const allKnown = nextWithdrawal >= withdrawals.length;
+    if (allKnown && pending.size === 0 && !held) break;
+    if (!held && tip >= lastEvent && nextAnchor !== null && nextAnchor > lastEvent + ANCHOR_STEP) {
+      stuck = true;
+      break;
+    }
+    // Past the last fee change, an attempt below the market confirms only after
+    // a rescue, and none comes once the attempt pays the market or RATE_MAX.
+    if (held && tip >= lastEvent) {
+      const median = rateAt(fees, tip);
+      const rate = retainedOf(held).rate;
+      if (median > rate && (!rescuesOn || rate >= Math.min(Math.max(median, 1), RATE_MAX))) {
+        stuck = true;
+        break;
+      }
+    }
+    tip += 1;
+  }
+
+  const finalHeight = Math.min(tip, horizon);
+  const finalVault = vault.filter((u) => u.created <= finalHeight);
+  const waits = [...paid.values()].map((p) => p.wait).sort((a, b) => a - b);
+  const quantile = (q) => (waits.length ? waits[Math.min(waits.length - 1, Math.floor(q * waits.length))] : null);
+  const sum = (key) => batches.reduce((s, b) => s + b[key], 0);
+  return {
+    batches,
+    refused,
+    unpaid: [...pending.values()].map((w) => ({ index: w.index, amount: w.amount, net: w.net, deduction: w.deduction, due: w.due })),
+    notYetDue: withdrawals.slice(nextWithdrawal).map((w) => w.index),
+    stuck,
+    inFlight: held
+      ? { anchor: held.anchor, derivedAt: held.derivedAt, attempt: retainedOf(held).attempt, rate: retainedOf(held).rate, attempts: held.attempts.map((a) => ({ ...a })), payouts: held.draft.payouts.map((p) => p.index), inputs: held.draft.inputs.map(keyOf), market: rateAt(fees, finalHeight) }
+      : null,
+    lastAttempt: pending.size && !held ? lastAttempt : null,
+    finalHeight,
+    feesPaid,
+    paymentFees: sum("paymentFee"),
+    requiredFees: sum("requiredFee"),
+    optionalFees: sum("optionalFee"),
+    optionalVbytes: sum("optionalVbytes"),
+    rescueFees: sum("rescueFee"),
+    rescued: batches.filter((b) => b.attempts.length > 1).length,
+    waits: { median: quantile(0.5), p90: quantile(0.9), max: waits.length ? waits[waits.length - 1] : null },
+    settled,
+    budget: journalBudget(finalHeight) + settled,
+    vault: finalVault,
+    spendable: finalVault.filter((u) => isSpendable(u, finalHeight)).length,
+    paidCount: paid.size,
+  };
+}
+
+</script>
+<script type="module">
+const engineSource = document.getElementById("engine-source").textContent;
+const engineUrl = URL.createObjectURL(new Blob([engineSource], { type: "text/javascript" }));
+const engine = await import(engineUrl);
+const { MIN_VAULT_OUTPUT, MAX_BATCH_VSIZE, RATE_MAX, CONSOLIDATION_FLOOR, CONSOLIDATION_MAX_RATE, coinbaseMature, isSpendable, feeMax } = engine;
+
+const MAX_OUTPUTS = 25_000;
+const MAX_WITHDRAWALS = 5_000;
+
+const KINDS = [
+  { key: "change", label: "Batch change", css: "--k-change" },
+  { key: "deposit", label: "Deposit", css: "--k-deposit" },
+  { key: "plain", label: "Payment, no recipient", css: "--k-plain" },
+  { key: "donation", label: "Donation", css: "--k-donation" },
+  { key: "writeoff", label: "Write-off", css: "--k-writeoff" },
+  { key: "coinbase", label: "Coinbase", css: "--k-coinbase" },
+];
+const KIND = Object.fromEntries(KINDS.map((k) => [k.key, k]));
+
+const $ = (id) => document.getElementById(id);
+const nf = new Intl.NumberFormat("en-GB");
+const n = (v) => nf.format(v);
+const btc = (sats) => `${(sats / 1e8).toLocaleString("en-GB", { maximumFractionDigits: 8 })} BTC`;
+const compact = (v) => {
+  const a = Math.abs(v);
+  const trim = (x) => String(Number(x.toFixed(a >= 1e9 ? 2 : 1)));
+  if (a >= 1e9) return `${trim(v / 1e9)}B`;
+  if (a >= 1e6) return `${trim(v / 1e6)}M`;
+  if (a >= 1e3) return `${trim(v / 1e3)}K`;
+  return String(Math.round(v));
+};
+const signed = (v) => (v > 0 ? `+${n(v)}` : v < 0 ? `−${n(-v)}` : "0");
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const el = (tag, props = {}, ...children) => {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(props)) {
+    if (key === "class") node.className = value;
+    else if (key === "text") node.textContent = value;
+    else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+    else if (value !== undefined && value !== null) node.setAttribute(key, value);
+  }
+  for (const child of children) if (child !== null && child !== undefined) node.append(child);
+  return node;
+};
+const svg = (tag, attrs = {}) => {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+  return node;
+};
+const ranges = (indices) => {
+  const sorted = [...indices].sort((a, b) => a - b);
+  const parts = [];
+  for (let i = 0; i < sorted.length; i++) {
+    let j = i;
+    while (j + 1 < sorted.length && sorted[j + 1] === sorted[j] + 1) j++;
+    parts.push(i === j ? `${sorted[i]}` : `${sorted[i]}–${sorted[j]}`);
+    i = j;
+  }
+  return parts.join(", ");
+};
+
+// --- presets ---------------------------------------------------------------
+const near = MIN_VAULT_OUTPUT + 1;
+const nodeTest = (overrides = {}) => ({
+  minPayout: 50_000,
+  deduction: 25_000,
+  start: 100,
+  horizon: 1_500,
+  fees: [{ from: 100, rate: 2 }],
+  outputs: [
+    { kind: "deposit", count: 1000, from: 100_000, to: 1_000_000, height: 100 },
+    { kind: "plain", count: 1000, from: near, to: near, height: 100 },
+    { kind: "plain", count: 10, from: 330, to: 5_799, height: 100 },
+    { kind: "coinbase", count: 1, from: 5_000_000_000, to: 5_000_000_000, height: 100 },
+  ],
+  withdrawals: [{ count: 1000, from: 100_000, to: 1_000_000, deduction: null, due: 105, group: 20, every: 1 }],
+  ...overrides,
+});
+const PRESETS = [
+  {
+    name: "Real-node round trip: 6 mints, 6 burns",
+    model: {
+      minPayout: 50_000,
+      deduction: 5_000,
+      start: 1,
+      horizon: 400,
+      fees: [{ from: 1, rate: 2 }],
+      outputs: [
+        { kind: "deposit", count: 1, from: 100_000, to: 100_000, height: 103 },
+        { kind: "donation", count: 1, from: 5_000, to: 5_000, height: 105 },
+        { kind: "coinbase", count: 1, from: 5_000_000_000, to: 5_000_000_000, height: 106 },
+        { kind: "plain", count: 600, from: near, to: near, height: 107 },
+        { kind: "plain", count: 10, from: 330, to: 5_799, height: 108 },
+        { kind: "donation", count: 200, from: near, to: near, height: 109 },
+        { kind: "deposit", count: 200, from: near, to: near, height: 110 },
+        { kind: "deposit", count: 1, from: 1_500_000, to: 1_500_000, height: 125 },
+        { kind: "deposit", count: 4, from: 60_000, to: 90_000, height: 127 },
+        { kind: "coinbase", count: 1, from: 2_500_000_000, to: 2_500_000_000, height: 205 },
+      ],
+      withdrawals: [
+        { count: 1, from: 100_000, to: 100_000, deduction: null, due: 117, group: 1, every: 0 },
+        { count: 1, from: 1_500_000, to: 1_500_000, deduction: null, due: 212, group: 1, every: 0 },
+        { count: 2, from: 60_000, to: 70_000, deduction: null, due: 224, group: 1, every: 12 },
+        { count: 2, from: 80_000, to: 90_000, deduction: null, due: 248, group: 2, every: 0 },
+      ],
+    },
+  },
+  { name: "1,000 withdrawals, 20 per block (node test)", model: nodeTest() },
+  { name: "1,000 withdrawals in one burst", model: nodeTest({ withdrawals: [{ count: 1000, from: 100_000, to: 1_000_000, deduction: null, due: 105, group: 1000, every: 0 }] }) },
+  { name: "1,000 withdrawals at 20 sat/vB", model: nodeTest({ fees: [{ from: 100, rate: 20 }] }) },
+  { name: "1,000 withdrawals through a fee spike", model: nodeTest({ fees: [{ from: 100, rate: 2 }, { from: 112, rate: 45 }, { from: 128, rate: 4 }] }) },
+  {
+    name: "A size-limited withdrawal",
+    model: {
+      minPayout: 50_000,
+      deduction: 5_000,
+      start: 100,
+      horizon: 400,
+      fees: [{ from: 100, rate: 3 }],
+      outputs: [
+        { kind: "deposit", count: 1, from: 100_000, to: 100_000, height: 100 },
+        { kind: "plain", count: 2000, from: near, to: 5_850, height: 100 },
+        { kind: "donation", count: 400, from: near, to: near, height: 101 },
+      ],
+      withdrawals: [{ count: 1, from: 100_000, to: 100_000, deduction: null, due: 108, group: 1, every: 0 }],
+    },
+  },
+  {
+    name: "Empty vault",
+    model: { minPayout: 50_000, deduction: 5_000, start: 100, horizon: 400, fees: [{ from: 100, rate: 2 }], outputs: [], withdrawals: [] },
+  },
+];
+
+// --- the scenario being edited ---------------------------------------------
+const clone = (x) => JSON.parse(JSON.stringify(x));
+let model = clone(PRESETS[0].model);
+const readStored = () => {
+  try {
+    if (location.hash.length > 1) return JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(1).replace(/-/g, "+").replace(/_/g, "/")))));
+  } catch {}
+  try {
+    const stored = localStorage.getItem("btc-batch-sim");
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return null;
+};
+const encoded = () => btoa(unescape(encodeURIComponent(JSON.stringify(model)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const restored = readStored();
+if (restored && Array.isArray(restored.outputs)) {
+  delete restored.budget0;
+  model = restored;
+}
+
+const int = (v, fallback = 0) => {
+  const x = Math.round(Number(v));
+  return Number.isFinite(x) ? x : fallback;
+};
+const spread = (from, to, i, count) => {
+  const a = int(from);
+  const b = to === null || to === undefined || to === "" ? a : int(to, a);
+  return count <= 1 ? a : Math.round(a + ((b - a) * i) / (count - 1));
+};
+
+function expand(m) {
+  const receipts = [];
+  m.outputs.forEach((row, r) => {
+    const count = Math.max(0, int(row.count));
+    for (let i = 0; i < count && receipts.length < MAX_OUTPUTS; i++) {
+      receipts.push({
+        txid: `o${String(r).padStart(4, "0")}`,
+        vout: i,
+        value: Math.max(1, spread(row.from, row.to, i, count)),
+        kind: row.kind,
+        coinbase: row.kind === "coinbase",
+        created: int(row.height),
+        row: r,
+      });
+    }
+  });
+  const withdrawals = [];
+  m.withdrawals.forEach((row, r) => {
+    const count = Math.max(0, int(row.count));
+    const group = Math.max(1, int(row.group, 1));
+    const every = Math.max(0, int(row.every));
+    const deduction = row.deduction === null || row.deduction === "" || row.deduction === undefined ? int(m.deduction) : int(row.deduction);
+    for (let i = 0; i < count && withdrawals.length < MAX_WITHDRAWALS; i++) {
+      withdrawals.push({ amount: Math.max(1, spread(row.from, row.to, i, count)), deduction: Math.max(0, deduction), due: int(row.due) + Math.floor(i / group) * every, row: r, i });
+    }
+  });
+  withdrawals.sort((a, b) => a.due - b.due || a.row - b.row || a.i - b.i);
+  withdrawals.forEach((w, k) => (w.index = k + 1));
+  const start = int(m.start);
+  const fees = m.fees.length ? m.fees.map((f) => ({ from: int(f.from), rate: Math.max(0, int(f.rate)) })) : [{ from: start, rate: 1 }];
+  return { start, horizon: Math.max(start, int(m.horizon, start + 400)), minPayout: Math.max(1, int(m.minPayout, 1)), fees, receipts, withdrawals, windowDelay: Math.max(0, int(m.windowDelay)), rescues: m.rescues !== false };
+}
+
+// --- editor ------------------------------------------------------------------
+const settings = ["minPayout", "deduction", "start", "horizon", "windowDelay"];
+const refreshers = [];
+const refreshMetas = () => refreshers.forEach((refresh) => refresh());
+for (const key of settings) {
+  $(key).addEventListener("input", (e) => {
+    model[key] = e.target.value === "" ? 0 : Number(e.target.value);
+    if (key === "windowDelay" && !model[key]) delete model[key];
+    refreshMetas();
+    changed();
+  });
+}
+$("rescues").addEventListener("change", (e) => {
+  if (e.target.checked) delete model.rescues;
+  else model.rescues = false;
+  changed();
+});
+
+function numberField(label, value, onInput, attrs = {}) {
+  const input = el("input", { type: "number", step: "1", value: value ?? "", ...attrs });
+  input.addEventListener("input", (e) => onInput(e.target.value === "" ? null : Number(e.target.value)));
+  return el("label", { class: "field" }, el("span", { text: label }), input);
+}
+const removeButton = (label, onClick) => el("button", { type: "button", class: "icon", "aria-label": label, text: "✕", onclick: onClick });
+
+// "of 60,000 to 90,000 sats in steps of 10,000" for the even spread a row makes.
+function spreadText(row) {
+  const count = Math.max(0, int(row.count));
+  const first = spread(row.from, row.to, 0, count);
+  const last = spread(row.from, row.to, count - 1, count);
+  if (count <= 1 || first === last) return `of ${n(first)} sats`;
+  const step = (last - first) / (count - 1);
+  const size = Number.isInteger(step) ? n(Math.abs(step)) : `about ${n(Math.round(Math.abs(step)))}`;
+  return `of ${n(first)} to ${n(last)} sats in steps of ${size}`;
+}
+function outputMeta(row) {
+  const count = Math.max(0, int(row.count));
+  const lo = Math.min(int(row.from), spread(row.from, row.to, count - 1, count));
+  const hi = Math.max(int(row.from), spread(row.from, row.to, count - 1, count));
+  const parts = [];
+  if (row.kind === "deposit") {
+    const min = int(model.minPayout);
+    if (lo >= min) parts.push("credited: each one mints its value");
+    else if (hi < min) parts.push(lo >= MIN_VAULT_OUTPUT ? "under the minimum payout: written off, funds the budget" : hi < MIN_VAULT_OUTPUT ? "under the minimum payout and 5,800 sats: written off, never spent" : "under the minimum payout: written off");
+    else parts.push("some credited, some written off");
+  } else if (row.kind === "donation") parts.push(hi < MIN_VAULT_OUTPUT ? "under 5,800 sats: never spent, funds nothing" : lo >= MIN_VAULT_OUTPUT ? "funds the fee budget" : "funds the budget where at least 5,800 sats");
+  else if (row.kind === "plain") parts.push(hi < MIN_VAULT_OUTPUT ? "no recipient, under 5,800 sats: never spent" : lo < MIN_VAULT_OUTPUT ? "no recipient; the part under 5,800 sats is never spent" : "no recipient: spendable, funds nothing");
+  else if (row.kind === "coinbase") parts.push(`spendable from anchor ${n(int(row.height) + 99)}`);
+  return parts.join(" · ");
+}
+
+function renderEditor() {
+  refreshers.length = 0;
+  for (const key of settings) $(key).value = model[key] ?? (key === "windowDelay" ? 0 : "");
+  $("rescues").checked = model.rescues !== false;
+  const fees = $("fees");
+  fees.replaceChildren(
+    ...model.fees.map((f, i) =>
+      el(
+        "div",
+        { class: "row fee" },
+        numberField("From height", f.from, (v) => { f.from = v ?? 0; changed(); }, { min: "0" }),
+        numberField("Median fee rate (sat/vB)", f.rate, (v) => { f.rate = v ?? 0; changed(); }, { min: "0" }),
+        removeButton("Remove this fee change", () => { model.fees.splice(i, 1); changed({ editor: true }); }),
+      ),
+    ),
+  );
+  const outputs = $("outputs");
+  outputs.replaceChildren(
+    ...model.outputs.map((row, i) => {
+      const kind = el("select", { "aria-label": "Kind" }, ...["deposit", "plain", "donation", "coinbase"].map((k) => el("option", { value: k, text: { deposit: "Deposit", plain: "Payment", donation: "Donation", coinbase: "Coinbase" }[k] })));
+      kind.value = row.kind;
+      kind.addEventListener("change", (e) => { row.kind = e.target.value; changed({ editor: true }); });
+      const meta = el("div", { class: "meta" });
+      const refresh = () => meta.replaceChildren(el("span", { class: "swatch", style: `background: var(${KIND[row.kind].css})` }), el("b", { text: `${n(Math.max(0, int(row.count)))} output${int(row.count) === 1 ? "" : "s"}` }), ` ${spreadText(row)} · ${outputMeta(row)}`);
+      refresh();
+      refreshers.push(refresh);
+      const edit = (field, fallback) => (v) => { row[field] = v ?? fallback; refresh(); changed(); };
+      return el(
+        "div",
+        { class: "row out" },
+        el("label", { class: "field" }, el("span", { text: "Kind" }), kind),
+        numberField("Count", row.count, edit("count", 0), { min: "0" }),
+        numberField("Height", row.height, edit("height", 0), { min: "0" }),
+        removeButton("Remove these outputs", () => { model.outputs.splice(i, 1); changed({ editor: true }); }),
+        el("div", { class: "second" }, numberField("First value (sats)", row.from, edit("from", 0), { min: "1" }), numberField("Last value (sats)", row.to, edit("to", null), { min: "1", placeholder: "same as first" })),
+        meta,
+      );
+    }),
+  );
+  if (!model.outputs.length) outputs.append(el("p", { class: "empty", text: "No vault outputs yet." }));
+  const withdrawals = $("withdrawals");
+  withdrawals.replaceChildren(
+    ...model.withdrawals.map((row, i) => {
+      const meta = el("div", { class: "meta" });
+      const refresh = () => {
+        const deduction = row.deduction === null || row.deduction === undefined ? int(model.deduction) : int(row.deduction);
+        const count = Math.max(0, int(row.count));
+        const first = int(row.from);
+        const lastAmount = spread(row.from, row.to, count - 1, count);
+        const lo = Math.min(first, lastAmount);
+        const hi = Math.max(first, lastAmount);
+        const refused = lo < int(model.minPayout) + deduction;
+        const last = int(row.due) + Math.floor(Math.max(0, count - 1) / Math.max(1, int(row.group, 1))) * Math.max(0, int(row.every));
+        meta.replaceChildren(
+          el("b", { text: `${n(count)} burn${count === 1 ? "" : "s"}` }),
+          ` ${spreadText(row)} · net ${n(lo - deduction)}${hi !== lo ? `–${n(hi - deduction)}` : ""} sats · submitted at ${last === int(row.due) ? `height ${n(int(row.due))}` : `heights ${n(int(row.due))}–${n(last)}, ${n(Math.min(count, Math.max(1, int(row.group, 1))))} per block`}`,
+          refused ? el("span", { style: "color: var(--warn)", text: " · under the minimum payout plus deduction: the gateway refuses these burns" }) : "",
+        );
+      };
+      refresh();
+      refreshers.push(refresh);
+      const edit = (field, fallback) => (v) => { row[field] = v ?? fallback; refresh(); changed(); };
+      return el(
+        "div",
+        { class: "row wd" },
+        numberField("First amount (sats)", row.from, edit("from", 0), { min: "1" }),
+        numberField("Last amount (sats)", row.to, edit("to", null), { min: "1", placeholder: "same as first" }),
+        numberField("Count", row.count, edit("count", 0), { min: "0" }),
+        removeButton("Remove these withdrawals", () => { model.withdrawals.splice(i, 1); changed({ editor: true }); }),
+        el(
+          "div",
+          { class: "second" },
+          numberField("Deduction", row.deduction, edit("deduction", null), { min: "0", placeholder: String(int(model.deduction)) }),
+          numberField("Start at height", row.due, edit("due", 0), { min: "0" }),
+          numberField("Burns per block", row.group, edit("group", 1), { min: "1" }),
+          numberField("Blocks apart", row.every, edit("every", 0), { min: "0" }),
+        ),
+        meta,
+      );
+    }),
+  );
+  if (!model.withdrawals.length) withdrawals.append(el("p", { class: "empty", text: "No withdrawals yet." }));
+}
+
+const lastHeight = () => Math.max(int(model.start), ...model.outputs.map((r) => int(r.height)), ...model.withdrawals.map((r) => int(r.due)));
+$("addFee").addEventListener("click", () => {
+  const last = model.fees[model.fees.length - 1];
+  model.fees.push({ from: (last ? int(last.from) : int(model.start)) + 20, rate: last ? int(last.rate) : 2 });
+  changed({ editor: true });
+});
+for (const button of document.querySelectorAll("[data-add-output]")) {
+  button.addEventListener("click", () => {
+    const kind = button.dataset.addOutput;
+    const defaults = { deposit: { count: 10, from: 100_000, to: 500_000 }, plain: { count: 100, from: near, to: near }, donation: { count: 1, from: 2_000_000, to: 2_000_000 }, coinbase: { count: 1, from: 5_000_000_000, to: 5_000_000_000 } }[kind];
+    model.outputs.push({ kind, ...defaults, height: int(model.start) });
+    changed({ editor: true });
+  });
+}
+$("addWithdrawal").addEventListener("click", () => {
+  model.withdrawals.push({ count: 10, from: 100_000, to: 200_000, deduction: null, due: lastHeight() + 5, group: 1, every: 1 });
+  changed({ editor: true });
+});
+
+const preset = $("preset");
+preset.append(el("option", { value: "", text: "Custom" }), ...PRESETS.map((p, i) => el("option", { value: String(i), text: p.name })));
+const matchPreset = () => {
+  const i = PRESETS.findIndex((p) => JSON.stringify(p.model) === JSON.stringify(model));
+  preset.value = i < 0 ? "" : String(i);
+};
+preset.addEventListener("change", () => {
+  if (preset.value === "") return;
+  model = clone(PRESETS[Number(preset.value)].model);
+  changed({ editor: true });
+});
+
+$("share").addEventListener("click", async () => {
+  const url = `${location.href.split("#")[0]}#${encoded()}`;
+  history.replaceState(null, "", url);
+  try {
+    await navigator.clipboard.writeText(url);
+    $("share").textContent = "Link copied";
+  } catch {
+    $("share").textContent = "Link in the address bar";
+  }
+  setTimeout(() => ($("share").textContent = "Copy link"), 1800);
+});
+
+const applyTheme = (theme) => {
+  document.documentElement.dataset.theme = theme;
+  $("theme").textContent = theme === "dark" ? "Light" : "Dark";
+  try { localStorage.setItem("btc-batch-sim-theme", theme); } catch {}
+};
+let storedTheme = null;
+try { storedTheme = localStorage.getItem("btc-batch-sim-theme"); } catch {}
+applyTheme(storedTheme === "light" ? "light" : "dark");
+$("theme").addEventListener("click", () => {
+  applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+  render();
+});
+
+// --- running the engine ------------------------------------------------------
+// A classic worker keeps long runs off the main thread. Some browsers refuse a
+// blob worker on a file:// page without throwing, so a run that gets no answer
+// falls back to the main thread.
+let worker = null;
+try {
+  const workerSource = `${engineSource.replace(/^export /gm, "")}\nself.onmessage = (e) => { try { self.postMessage({ id: e.data.id, result: simulate(e.data.scenario) }); } catch (err) { self.postMessage({ id: e.data.id, error: String((err && err.stack) || err) }); } };`;
+  worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" })));
+  worker.onerror = () => {
+    worker = null;
+    run();
+  };
+} catch {
+  worker = null;
+}
+let workerAnswered = false;
+let runId = 0;
+let timer = null;
+let input = null;
+let result = null;
+let view = 0;
+
+function changed({ editor = false } = {}) {
+  if (editor) renderEditor();
+  matchPreset();
+  try { localStorage.setItem("btc-batch-sim", JSON.stringify(model)); } catch {}
+  clearTimeout(timer);
+  timer = setTimeout(run, 250);
+}
+
+function run() {
+  input = expand(model);
+  const id = ++runId;
+  document.body.classList.add("busy");
+  const done = (data) => {
+    if (data.id !== runId) return;
+    document.body.classList.remove("busy");
+    if (data.error) {
+      showStatus("The simulation failed", data.error);
+      return;
+    }
+    result = decorate(data.result, input);
+    view = result.batches.length + 1;
+    render();
+  };
+  if (worker) {
+    const watchdog = workerAnswered
+      ? null
+      : setTimeout(() => {
+          if (id !== runId || workerAnswered) return;
+          worker = null;
+          run();
+        }, 2_500);
+    worker.onmessage = (e) => {
+      workerAnswered = true;
+      clearTimeout(watchdog);
+      done(e.data);
+    };
+    worker.postMessage({ id, scenario: input });
+  } else {
+    setTimeout(() => {
+      try { done({ id, result: engine.simulate(input) }); } catch (err) { done({ id, error: String(err) }); }
+    });
+  }
+}
+
+// Per-output history the vault map reads: where each output appears and the
+// batch that spends it.
+function decorate(res, inp) {
+  const cells = inp.receipts.map((r) => ({ key: `${r.txid}:${r.vout}`, txid: r.txid, vout: r.vout, value: r.value, kind: r.kind === "deposit" && r.value < inp.minPayout ? "writeoff" : r.kind, coinbase: r.coinbase, created: r.created, spentIn: Infinity, madeBy: 0 }));
+  const byKey = new Map(cells.map((c) => [c.key, c]));
+  for (const b of res.batches) {
+    const parts = b.changeKey.split(":");
+    const change = { key: b.changeKey, txid: parts[0], vout: Number(parts[1]), value: b.change, kind: "change", coinbase: false, created: b.confirmed, spentIn: Infinity, madeBy: b.n };
+    cells.push(change);
+    byKey.set(change.key, change);
+  }
+  for (const b of res.batches) for (const u of b.inputs) {
+    const cell = byKey.get(`${u.txid}:${u.vout}`);
+    if (cell) cell.spentIn = b.n;
+  }
+  for (const key of res.inFlight?.inputs ?? []) {
+    const cell = byKey.get(key);
+    if (cell) cell.reserved = true;
+  }
+  let deducted = 0;
+  let paying = 0;
+  let spent = 0;
+  for (const b of res.batches) {
+    b.deductions = b.payouts.reduce((s, p) => s + p.deduction, 0);
+    deducted += b.deductions;
+    paying += b.paymentFee;
+    spent += b.fee;
+    b.deductedSoFar = deducted;
+    b.paymentFeesSoFar = paying;
+    b.feesSoFar = spent;
+    b.flowBalance = deducted - paying;
+    b.balance = deducted - spent;
+  }
+  for (const b of res.batches) {
+    b.byKind = Object.fromEntries(KINDS.map((k) => [k.key, 0]));
+    for (const u of b.inputs) b.byKind[byKey.get(`${u.txid}:${u.vout}`)?.kind ?? u.kind]++;
+  }
+  const pendingDeductions = res.unpaid.reduce((s, w) => s + w.deduction, 0);
+  return { ...res, cells, peak: ownedPeak(res, cells), total: inp.withdrawals.length, balance: res.settled - res.feesPaid, fillFees: res.requiredFees + res.optionalFees, flowBalance: res.settled - res.paymentFees, pendingDeductions };
+}
+
+// --- rendering -------------------------------------------------------------------
+function showStatus(title, text) {
+  $("status").classList.add("on");
+  $("statusTitle").textContent = title;
+  $("statusText").textContent = text;
+}
+
+function render() {
+  if (!result) return;
+  renderStatus();
+  renderTiles();
+  renderScrub();
+  renderMap();
+  renderDetail();
+  renderCharts();
+  renderTable();
+}
+
+function renderStatus() {
+  const r = result;
+  const lines = [];
+  let title = "";
+  if (r.unpaid.length) {
+    const a = r.lastAttempt;
+    title = `${n(r.unpaid.length)} withdrawal${r.unpaid.length === 1 ? "" : "s"} unpaid at height ${n(r.finalHeight)}`;
+    const f = r.inFlight;
+    if (f) {
+      const behind = r.unpaid.length - f.payouts.length;
+      const why = f.rate >= RATE_MAX ? `It pays ${RATE_MAX} sat/vB, the most a rescue pays, and the median stays above it.` : input.rescues ? "A rescue comes at the next opportunity, 36 blocks apart." : "Rescues are off, so it waits until the median falls to its rate.";
+      lines.push(`The batch anchored at ${n(f.anchor)} is in flight at ${n(f.rate)} sat/vB (attempt ${n(f.attempt)}), below the median of ${n(f.market)} sat/vB. ${why} It holds the vault's one spend slot${behind > 0 ? `, and ${n(behind)} more withdrawal${behind === 1 ? "" : "s"} wait behind it` : ""}.`);
+    } else if (a?.refused === "budget") lines.push(`The fee budget at anchor ${n(a.anchor)}, ${n(a.budget)} sats, is below the fee at ${RATE_MAX} sat/vB of the batch that would pay them, ${n(a.needed)} sats. Donations, write-offs, or more burns add to it.`);
+    else if (a?.refused === "consolidation-floor") lines.push(`They are size-limited, but a consolidation needs a budget of ${n(CONSOLIDATION_FLOOR)} sats plus its fee at ${RATE_MAX} sat/vB, and the budget is ${n(a.budget)} sats.`);
+    else lines.push("No selection of at most 171 spendable outputs funds them, and the vault's spendable value does not cover a full batch, so no consolidation runs.");
+    if (!r.stuck) lines.push(`The run stopped at the last height to simulate; raise it to see more.`);
+  }
+  if (r.notYetDue.length) {
+    title = title || `${n(r.notYetDue.length)} withdrawal${r.notYetDue.length === 1 ? "" : "s"} not yet submitted`;
+    lines.push(`${n(r.notYetDue.length)} are submitted after height ${n(r.finalHeight)}: raise the last height to simulate.`);
+  }
+  if (r.refused.length) {
+    title = title || `${n(r.refused.length)} burn${r.refused.length === 1 ? "" : "s"} refused`;
+    lines.push(`The gateway refuses ${n(r.refused.length)} burn${r.refused.length === 1 ? "" : "s"} under the minimum payout plus the deduction.`);
+  }
+  if (input.receipts.length >= MAX_OUTPUTS || input.withdrawals.length >= MAX_WITHDRAWALS) lines.push(`The page caps a scenario at ${n(MAX_OUTPUTS)} outputs and ${n(MAX_WITHDRAWALS)} withdrawals.`);
+  if (!lines.length) {
+    $("status").classList.remove("on");
+    return;
+  }
+  showStatus(title || "Note", lines.join(" "));
+}
+
+function tile(label, value, sub, extra = null) {
+  return el("div", { class: "tile" }, el("div", { class: "label", text: label }), el("div", { class: "value", text: value }), el("div", { class: "sub", text: sub }), extra);
+}
+function flag(good, text) {
+  const icon = svg("svg", { viewBox: "0 0 16 16", "aria-hidden": "true" });
+  icon.append(svg("circle", { cx: 8, cy: 8, r: 7, fill: "none", stroke: good ? css("--good") : css("--critical"), "stroke-width": 1.5 }));
+  icon.append(svg("path", { d: good ? "M4.8 8.3 7 10.5l4.2-4.6" : "M5.5 5.5l5 5M10.5 5.5l-5 5", fill: "none", stroke: good ? css("--good") : css("--critical"), "stroke-width": 1.6, "stroke-linecap": "round", "stroke-linejoin": "round" }));
+  return el("div", { class: "flag" }, icon, el("span", { text }));
+}
+function renderTiles() {
+  const r = result;
+  const consolidations = r.batches.filter((b) => b.payouts.length === 0).length;
+  const unspendable = r.vault.length - r.spendable;
+  const blocks = (v) => `${n(v)} block${v === 1 ? "" : "s"}`;
+  const parts = [["payment", r.paymentFees], ["required consolidation", r.requiredFees], ["optional fill", r.optionalFees]].filter(([, v]) => v).map(([label, v]) => `${label} ${n(v)}`);
+  const batchesSub = !r.batches.length ? "none derived" : [consolidations ? `${n(consolidations)} with no payouts` : "every one pays", r.rescued ? `${n(r.rescued)} rescued` : null].filter(Boolean).join(", ");
+  const filled = r.batches.reduce((s, b) => s + (b.kind === "pays + low-rate fill" ? b.filled : 0), 0);
+  const breakEven = r.optionalVbytes ? r.optionalFees / r.optionalVbytes : 0;
+  $("tiles").replaceChildren(
+    tile("Withdrawals paid", n(r.paidCount), `of ${n(r.total)}${r.refused.length ? `, ${n(r.refused.length)} refused by the gateway` : `, by height ${n(r.finalHeight)}`}`),
+    tile("Withdrawal wait", r.waits.median === null ? "–" : blocks(r.waits.median), r.waits.median === null ? "no withdrawal paid" : `median; p90 ${blocks(r.waits.p90)}, longest ${blocks(r.waits.max)}`),
+    tile("Batches", n(r.batches.length), batchesSub),
+    tile("Fees paid", n(r.feesPaid), `${parts.join(", ") || "no batch confirmed"}${r.rescueFees ? `; rescues added ${n(r.rescueFees)}` : ""}`),
+    tile("Optional fill", n(r.optionalFees), filled ? `${n(filled)} outputs merged at ${breakEven.toFixed(1)} sat/vB on average: worth it if spending them later would cost more` : "no batch filled at a low rate"),
+    tile("Spendable outputs left", n(r.spendable), `${n(unspendable)} under 5,800 sats or immature${r.inFlight ? `; ${n(r.inFlight.inputs.length)} of the spendable ones are inputs of the batch in flight` : ""}`),
+    tile(
+      "Deductions less payment fees",
+      signed(r.flowBalance),
+      `${n(r.settled)} deducted; ${signed(r.balance)} after ${n(r.fillFees)} of consolidation${r.pendingDeductions ? `; unpaid burns hold ${n(r.pendingDeductions)} more` : ""}`,
+      r.batches.length ? flag(r.flowBalance >= 0, r.flowBalance >= 0 ? "Withdrawals pay their own fees" : "Withdrawals do not pay their own fees") : null,
+    ),
+    tile("Fee budget left", n(r.budget), `${n(r.budget - r.balance)} from donations and write-offs, ${signed(r.balance)} from deductions less fees`),
+  );
+}
+
+let playing = null;
+function renderScrub() {
+  const total = result.batches.length;
+  const slider = $("slider");
+  slider.min = total ? "1" : "0";
+  slider.max = String(total + 1);
+  slider.value = String(view);
+  slider.disabled = total === 0;
+  $("pos").textContent = view > total ? `end · ${n(total)} batch${total === 1 ? "" : "es"}` : `batch ${n(view)} of ${n(total)}`;
+}
+const select = (v) => {
+  const total = result ? result.batches.length : 0;
+  view = Math.min(Math.max(v, total ? 1 : 0), total + 1);
+  renderScrub();
+  renderMap();
+  renderDetail();
+  highlightCharts();
+  highlightTable();
+};
+$("slider").addEventListener("input", (e) => select(Number(e.target.value)));
+$("prev").addEventListener("click", () => select(view - 1));
+$("next").addEventListener("click", () => select(view + 1));
+$("play").addEventListener("click", () => {
+  if (playing) {
+    clearInterval(playing);
+    playing = null;
+    $("play").textContent = "Play";
+    return;
+  }
+  if (!result || !result.batches.length) return;
+  if (view > result.batches.length) select(1);
+  $("play").textContent = "Pause";
+  const step = Math.max(80, Math.min(400, 12_000 / result.batches.length));
+  playing = setInterval(() => {
+    if (view > result.batches.length) {
+      clearInterval(playing);
+      playing = null;
+      $("play").textContent = "Play";
+      return;
+    }
+    select(view + 1);
+  }, step);
+});
+
+// --- the vault map ---------------------------------------------------------------
+function mapState() {
+  const total = result.batches.length;
+  const atEnd = view > total || total === 0;
+  const batch = atEnd ? null : result.batches[view - 1];
+  const height = atEnd ? result.finalHeight : batch.anchor;
+  return { atEnd, batch, height, k: atEnd ? total + 1 : view };
+}
+let mapLayout = null;
+// The most outputs the vault holds at any view, so the map keeps one height
+// while the batches step.
+function ownedPeak(res, cells) {
+  const heights = cells.filter((c) => !c.madeBy).map((c) => c.created).sort((a, b) => a - b);
+  const receivedBy = (h) => {
+    let lo = 0;
+    let hi = heights.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (heights[mid] <= h) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  };
+  let spent = 0;
+  let peak = 0;
+  res.batches.forEach((b, j) => {
+    peak = Math.max(peak, receivedBy(b.anchor) + j - spent);
+    spent += b.inputs.length;
+  });
+  return Math.max(peak, receivedBy(res.finalHeight) + res.batches.length - spent);
+}
+const owns = (c, k, height) => (c.madeBy ? c.madeBy < k : c.created <= height) && !(c.spentIn < k);
+function renderMap() {
+  const canvas = $("map");
+  const { k, height, batch, atEnd } = mapState();
+  const owned = result.cells.filter((c) => owns(c, k, height));
+  const peak = Math.max(result.peak, owned.length, 1);
+  const width = canvas.parentElement.clientWidth - 36;
+  const pitch = peak > 6000 ? 6 : peak > 2500 ? 8 : 10;
+  const size = pitch - 2;
+  const cols = Math.max(10, Math.floor(width / pitch));
+  const rows = Math.max(1, Math.ceil(peak / cols));
+  const ratio = window.devicePixelRatio || 1;
+  canvas.style.height = `${rows * pitch}px`;
+  canvas.width = Math.round(cols * pitch * ratio);
+  canvas.height = Math.round(rows * pitch * ratio);
+  canvas.style.width = `${cols * pitch}px`;
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, cols * pitch, rows * pitch);
+  mapLayout = { pitch, cols, size, owned };
+  const colors = Object.fromEntries(KINDS.map((x) => [x.key, css(x.css)]));
+  const unspendable = css("--k-unspendable");
+  const ring = css("--ink");
+  const counts = { spendable: 0, unspendable: 0, taking: 0 };
+  owned.forEach((c, i) => {
+    const x = (i % cols) * pitch;
+    const y = Math.floor(i / cols) * pitch;
+    if (isSpendable(c, height)) {
+      counts.spendable++;
+      ctx.fillStyle = colors[c.kind];
+      ctx.fillRect(x, y, size, size);
+    } else if (c.coinbase && c.value >= MIN_VAULT_OUTPUT) {
+      counts.unspendable++;
+      ctx.strokeStyle = colors.coinbase;
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(x + 0.75, y + 0.75, size - 1.5, size - 1.5);
+    } else {
+      counts.unspendable++;
+      ctx.fillStyle = unspendable;
+      ctx.fillRect(x, y, size, size);
+    }
+    if (c.spentIn === k || (atEnd && c.reserved)) {
+      counts.taking++;
+      ctx.strokeStyle = ring;
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(x - 0.75, y - 0.75, size + 1.5, size + 1.5);
+    }
+  });
+  const legend = $("mapLegend");
+  legend.replaceChildren(
+    ...KINDS.filter((x) => owned.some((c) => c.kind === x.key && isSpendable(c, height))).map((x) => el("span", {}, el("i", { class: "swatch", style: `background: var(${x.css})` }), x.label)),
+    owned.some((c) => c.value < MIN_VAULT_OUTPUT) ? el("span", {}, el("i", { class: "swatch", style: "background: var(--k-unspendable)" }), "Under 5,800 sats") : null,
+    owned.some((c) => c.coinbase && c.value >= MIN_VAULT_OUTPUT && !isSpendable(c, height)) ? el("span", {}, el("i", { class: "ring" }), "Coinbase, immature") : null,
+  );
+  $("mapHint").textContent = atEnd
+    ? `The vault holds ${n(owned.length)} outputs at height ${n(height)}: ${n(counts.spendable)} spendable, ${n(counts.unspendable)} not spendable.${counts.taking ? ` The ${n(counts.taking)} ringed ones are the inputs of the batch still in flight.` : ""}`
+    : `The vault holds ${n(owned.length)} outputs before batch ${n(batch.n)} confirms. The ${n(counts.taking)} ringed ones are its inputs, and ${n(counts.spendable)} are spendable at anchor ${n(height)}.`;
+}
+const tip = $("tip");
+function showTip(event, title, rows) {
+  tip.replaceChildren(el("div", { class: "t", text: title }), ...rows.map(([color, label, value]) => el("div", { class: "r" }, el("i", { style: color ? `background:${color}` : "" }), el("span", { text: label }), el("b", { text: value }))));
+  tip.style.display = "block";
+  const pad = 14;
+  const box = tip.getBoundingClientRect();
+  let x = event.clientX + pad;
+  let y = event.clientY + pad;
+  if (x + box.width > innerWidth - 8) x = event.clientX - box.width - pad;
+  if (y + box.height > innerHeight - 8) y = event.clientY - box.height - pad;
+  tip.style.left = `${Math.max(8, x)}px`;
+  tip.style.top = `${Math.max(8, y)}px`;
+}
+const hideTip = () => (tip.style.display = "none");
+$("map").addEventListener("pointermove", (e) => {
+  if (!mapLayout || !result) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const col = Math.floor((e.clientX - rect.left) / mapLayout.pitch);
+  const row = Math.floor((e.clientY - rect.top) / mapLayout.pitch);
+  const cell = col < mapLayout.cols ? mapLayout.owned[row * mapLayout.cols + col] : null;
+  if (!cell) return hideTip();
+  const { k, height } = mapState();
+  let state;
+  if (cell.spentIn === k) state = "an input of this batch";
+  else if (isSpendable(cell, height)) state = "spendable";
+  else if (cell.value < MIN_VAULT_OUTPUT) state = "under 5,800 sats, never spent";
+  else state = `immature until anchor ${n(cell.created + 99)}`;
+  showTip(e, `${KIND[cell.kind].label} · ${cell.txid}:${cell.vout}`, [
+    [css(KIND[cell.kind].css), "Value", `${n(cell.value)} sats`],
+    [null, cell.madeBy ? "Confirmed at" : "Received at", n(cell.created)],
+    [null, "State", state],
+  ]);
+});
+$("map").addEventListener("pointerleave", hideTip);
+
+// --- the batch detail ------------------------------------------------------------
+const KIND_TEXT = {
+  consolidation: "Consolidation: no payouts",
+  "pays + low-rate fill": "Pays, and fills at a low rate",
+  "pays + size-limit fill": "Pays, and fills for a size-limited withdrawal",
+  pays: "Pays, no fill",
+};
+const STOP_TEXT = { size: "the size limit of 10,000 vB", floor: "the consolidation floor", pool: "no spendable output left" };
+function gate(label, value, need, max) {
+  const scale = Math.max(value, need, 1) * 1.1;
+  return el(
+    "div",
+    { class: "gate" },
+    el("div", { class: "cap" }, el("span", { text: label }), el("span", { class: "mono", text: `${compact(value)} of ${compact(need)} needed` })),
+    el("div", { class: "bar", role: "img", "aria-label": `${label}: ${n(value)} sats against ${n(need)} needed` }, el("i", { style: `width:${Math.min(100, (Math.max(0, value) / scale) * 100)}%` }), el("b", { style: `left:${Math.min(100, (need / scale) * 100)}%` })),
+  );
+}
+function renderDetail() {
+  const box = $("detail");
+  const { atEnd, batch, height } = mapState();
+  if (atEnd) {
+    const byKind = {};
+    for (const u of result.vault) {
+      const kind = u.kind === "deposit" && u.value < input.minPayout ? "writeoff" : u.kind;
+      const state = isSpendable(u, height) ? "spendable" : "not spendable";
+      byKind[`${KIND[kind].label}, ${state}`] = (byKind[`${KIND[kind].label}, ${state}`] ?? 0) + 1;
+    }
+    box.replaceChildren(
+      el("h3", { text: `The vault at height ${n(height)}` }),
+      el("dl", {}, ...Object.entries(byKind).sort((a, b) => b[1] - a[1]).flatMap(([label, count]) => [el("dt", { text: label }), el("dd", { text: n(count) })])),
+      ...(result.batches.length ? [] : [el("p", { class: "empty", text: "No batch was derived." })]),
+    );
+    return;
+  }
+  const b = batch;
+  const rows = [
+    ["Kind", el("span", { class: "kind", text: KIND_TEXT[b.kind] })],
+    ["Anchor", `${n(b.anchor)}${b.anchor !== b.baseAnchor ? ` (base ${n(b.baseAnchor)})` : ""} · derived at ${n(b.derivedAt)} · confirmed at ${n(b.confirmed)}${b.waited ? `, ${n(b.waited)} block${b.waited === 1 ? "" : "s"} late` : ""}`],
+    ["rate_0", `${n(b.rate0)} sat/vB${b.rate0 <= CONSOLIDATION_MAX_RATE ? " · at or below the low-rate threshold" : ""}`],
+    ["Attempts", b.attempts.length === 1 ? "one, confirmed" : b.attempts.map((x) => (x.attempt === 0 ? `0 at ${n(x.rate)} sat/vB` : `rescue ${n(x.attempt)} at ${n(x.rate)} sat/vB (height ${n(x.height)})`)).join(" → ") + `; attempt ${n(b.attempts[b.attempts.length - 1].attempt)} confirmed`],
+    ["Size", `${n(b.vsize)} vB of ${n(MAX_BATCH_VSIZE)}`],
+    ["Fee", `${n(b.fee)} sats at ${n(b.rate)} sat/vB: payment ${n(b.paymentFee)}${b.requiredFee ? `, required consolidation ${n(b.requiredFee)}` : ""}${b.optionalFee ? `, optional fill ${n(b.optionalFee)}` : ""}${b.rescueFee ? `; the rescue added ${n(b.rescueFee)}` : ""} · ${n(feeMax(b.vsize))} at ${RATE_MAX} sat/vB`],
+    ["Inputs", `${n(b.inputs.length)} · ${KINDS.filter((x) => b.byKind[x.key]).map((x) => `${n(b.byKind[x.key])} ${x.label.toLowerCase()}`).join(", ")}`],
+    ["Payouts", b.payouts.length ? `${n(b.payouts.length)} · withdrawals ${ranges(b.payouts.map((p) => p.index))} · ${n(b.netSum)} sats net` : "none"],
+    ["Change", `${n(b.change)} sats`],
+    ["Fill", b.filled ? `${n(b.filled)} outputs, stopped by ${STOP_TEXT[b.stop]}` : b.kind === "pays" ? (b.rate0 > CONSOLIDATION_MAX_RATE ? "none: rate_0 is above 10 sat/vB" : "none") : `none, stopped by ${STOP_TEXT[b.stop]}`],
+    ["Spendable", `${n(b.poolBefore)} at the anchor · ${n(b.spendableAfter)} after`],
+    ["Budget", `${n(b.budget)} sats = donations and write-offs less fees ${n(b.journal)} + settled deductions ${n(b.settledBefore)} + deductions of the burns it may pay ${n(b.dueDeductions)}`],
+    ["Deductions", `${n(b.deductions)} sats from the withdrawals it pays, against its ${n(b.fee)}-sat fee`],
+    ["Wait", b.payouts.length ? `the longest of its withdrawals waited ${n(b.waitMax)} block${b.waitMax === 1 ? "" : "s"}` : "no withdrawal"],
+    ["Balance", `${signed(b.flowBalance)} sats after payment fees, ${signed(b.balance)} after all fees, so far`],
+  ];
+  if (b.skipped.length) rows.push(["Skipped", `withdrawals ${ranges(b.skipped)}: no fit within the size limit`]);
+  if (b.sizeLimited.length) rows.push(["Size-limited", `withdrawals ${ranges(b.sizeLimited)}`]);
+  box.replaceChildren(
+    el("h3", { text: `Batch ${n(b.n)}` }),
+    el("dl", {}, ...rows.flatMap(([label, value]) => [el("dt", { text: label }), el("dd", {}, value)])),
+    gate(`Covers its fee at ${RATE_MAX} sat/vB`, b.budget, feeMax(b.vsize)),
+    gate("Keeps the consolidation floor", b.budget, feeMax(b.vsize) + CONSOLIDATION_FLOOR),
+  );
+}
+
+// --- charts ------------------------------------------------------------------------
+const charts = [];
+function niceTicks(max, min = 0, count = 4) {
+  if (max <= min) return [min, min + 1];
+  const raw = (max - min) / count;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw);
+  const lo = Math.floor(min / step) * step;
+  const hi = Math.ceil(max / step) * step;
+  const ticks = [];
+  for (let i = 0; lo + i * step <= hi + step * 1e-6; i++) ticks.push(lo + i * step);
+  return ticks;
+}
+function frame(host, { height = 220, yMax, yMin = 0, xCount, band, xLabel = null }) {
+  const width = Math.max(280, host.clientWidth);
+  const m = { l: 52, r: 14, t: 10, b: 26 };
+  const root = svg("svg", { viewBox: `0 0 ${width} ${height}`, height, role: "img" });
+  const ticks = niceTicks(yMax, yMin);
+  const bottom = ticks[0];
+  const top = ticks[ticks.length - 1];
+  const y = (v) => m.t + (height - m.t - m.b) * (1 - (v - bottom) / (top - bottom));
+  const inner = width - m.l - m.r;
+  const x = band ? (i) => m.l + (inner * (i + 0.5)) / xCount : (i) => m.l + (xCount <= 1 ? inner / 2 : (inner * i) / (xCount - 1));
+  for (const t of ticks) {
+    root.append(svg("line", { class: t === 0 ? "base" : "grid", x1: m.l, x2: width - m.r, y1: y(t), y2: y(t) }));
+    const label = svg("text", { class: "tick", x: m.l - 8, y: y(t) + 4, "text-anchor": "end" });
+    label.textContent = compact(t);
+    root.append(label);
+  }
+  const every = Math.max(1, Math.ceil(xCount / Math.max(2, Math.floor(inner / 56))));
+  for (let i = 0; i < xCount; i += every) {
+    const label = svg("text", { class: "tick", x: x(i), y: height - 8, "text-anchor": "middle" });
+    label.textContent = xLabel ? xLabel(i) : band ? String(i + 1) : String(i);
+    root.append(label);
+  }
+  return { root, x, y, m, width, height, inner };
+}
+function attachHover(host, f, count, band, describe) {
+  const cross = band ? svg("rect", { class: "sel", y: f.m.t, height: f.height - f.m.t - f.m.b, width: 0, opacity: 0 }) : svg("line", { class: "cross", y1: f.m.t, y2: f.height - f.m.b, opacity: 0 });
+  const selected = band ? svg("rect", { class: "sel", y: f.m.t, height: f.height - f.m.t - f.m.b, width: 0, opacity: 0 }) : svg("line", { class: "picked", y1: f.m.t, y2: f.height - f.m.b, opacity: 0 });
+  f.root.prepend(selected);
+  f.root.append(cross);
+  const slot = f.inner / Math.max(1, band ? count : count - 1);
+  const place = (node, i) => {
+    if (band) {
+      node.setAttribute("x", f.x(i) - slot / 2);
+      node.setAttribute("width", slot);
+    } else {
+      node.setAttribute("x1", f.x(i));
+      node.setAttribute("x2", f.x(i));
+    }
+  };
+  const index = (e) => {
+    const rect = f.root.getBoundingClientRect();
+    const px = ((e.clientX - rect.left) / rect.width) * f.width;
+    const raw = band ? Math.floor((px - f.m.l) / (f.inner / count)) : Math.round((px - f.m.l) / (f.inner / Math.max(1, count - 1)));
+    return Math.min(count - 1, Math.max(0, raw));
+  };
+  f.root.addEventListener("pointermove", (e) => {
+    const i = index(e);
+    place(cross, i);
+    cross.setAttribute("opacity", 1);
+    const [title, rows] = describe(i);
+    showTip(e, title, rows);
+  });
+  f.root.addEventListener("pointerleave", () => {
+    cross.setAttribute("opacity", 0);
+    hideTip();
+  });
+  f.root.addEventListener("click", (e) => select(index(e) + 1));
+  host.replaceChildren(f.root);
+  charts.push({ place: (v) => {
+    if (band && v > result.batches.length) return selected.setAttribute("opacity", 0);
+    place(selected, v - 1);
+    selected.setAttribute("opacity", 1);
+  } });
+}
+function stepPath(f, values) {
+  let d = "";
+  values.forEach((v, i) => {
+    const px = f.x(i);
+    const py = f.y(v);
+    if (i === 0) d += `M${px},${py}`;
+    else d += `H${px}V${py}`;
+  });
+  return d;
+}
+// Each batch's attempts against the market rate it is priced at: the highest
+// median of the six blocks ending at a height. An attempt waits
+// while a block's median is above its rate.
+function renderMarketChart() {
+  const host = $("chartE");
+  const bs = result.batches;
+  const flight = result.inFlight;
+  if (!bs.length && !flight) {
+    host.replaceChildren(el("p", { class: "empty", text: "No batch to plot." }));
+    $("legendE").replaceChildren();
+    return;
+  }
+  const first = input.start;
+  const last = Math.max(result.finalHeight, ...bs.map((b) => b.confirmed));
+  const count = last - first + 1;
+  const steps = [...input.fees].sort((x, y) => x.from - y.from);
+  const median = new Array(count);
+  let k = 0;
+  let rate = steps.length ? steps[0].rate : 1;
+  for (let i = 0; i < count; i++) {
+    while (k < steps.length && steps[k].from <= first + i) rate = steps[k++].rate;
+    median[i] = rate;
+  }
+  const market = median.map((_, i) => (i < 5 ? null : Math.min(Math.max(Math.max(...median.slice(i - 5, i + 1)), 1), RATE_MAX)));
+  const flights = bs.map((b) => ({ n: b.n, attempts: b.attempts, end: b.confirmed, confirmed: true }));
+  if (flight) flights.push({ n: bs.length + 1, attempts: flight.attempts, end: last, confirmed: false });
+  const top = Math.max(...median, ...flights.flatMap((x) => x.attempts.map((y) => y.rate)), 1);
+  const f = frame(host, { yMax: top * 1.1, xCount: count, xLabel: (i) => String(first + i) });
+  f.root.setAttribute("aria-label", "The block median and market fee rates by height, with each batch's attempts");
+  const ink = css("--ink");
+  const muted = css("--ink-3");
+  const violet = css("--k-budget");
+  const xh = (h) => f.x(Math.min(count - 1, Math.max(0, h - first)));
+  const band = svg("rect", { class: "sel", y: f.m.t, height: f.height - f.m.t - f.m.b, width: 0, opacity: 0 });
+  f.root.append(band);
+  f.root.append(svg("path", { d: stepPath(f, median), fill: "none", stroke: muted, "stroke-width": 1.5, "stroke-linejoin": "round" }));
+  let d = "";
+  market.forEach((v, i) => {
+    if (v === null) return;
+    d += d ? `H${f.x(i)}V${f.y(v)}` : `M${f.x(i)},${f.y(v)}`;
+  });
+  f.root.append(svg("path", { d, fill: "none", stroke: ink, "stroke-width": 2, "stroke-linejoin": "round" }));
+  const flightAt = new Array(count).fill(null);
+  const dots = flights.length <= 120;
+  for (const x of flights) {
+    let path = "";
+    x.attempts.forEach((at, j) => {
+      const to = j + 1 < x.attempts.length ? x.attempts[j + 1].broadcastAt : x.end;
+      path += j === 0 ? `M${xh(at.broadcastAt)},${f.y(at.rate)}` : `V${f.y(at.rate)}`;
+      path += `H${xh(to)}`;
+      for (let h = at.broadcastAt; h <= to && h <= last; h++) flightAt[h - first] = { n: x.n, attempt: at.attempt, rate: at.rate, confirmed: x.confirmed && h === x.end };
+    });
+    f.root.append(svg("path", { d: path, fill: "none", stroke: violet, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    const late = x.attempts.length > 1 || !x.confirmed || x.end - x.attempts[0].broadcastAt > 1;
+    if (x.confirmed && (dots || late)) f.root.append(svg("circle", { cx: xh(x.end), cy: f.y(x.attempts[x.attempts.length - 1].rate), r: 4, fill: violet, stroke: css("--surface-solid"), "stroke-width": 2 }));
+  }
+  const cross = svg("line", { class: "cross", y1: f.m.t, y2: f.height - f.m.b, opacity: 0 });
+  f.root.append(cross);
+  const index = (e) => {
+    const rect = f.root.getBoundingClientRect();
+    const px = ((e.clientX - rect.left) / rect.width) * f.width;
+    return Math.min(count - 1, Math.max(0, Math.round((px - f.m.l) / (f.inner / Math.max(1, count - 1)))));
+  };
+  f.root.addEventListener("pointermove", (e) => {
+    const i = index(e);
+    cross.setAttribute("x1", f.x(i));
+    cross.setAttribute("x2", f.x(i));
+    cross.setAttribute("opacity", 1);
+    const at = flightAt[i];
+    showTip(e, `Height ${n(first + i)}`, [
+      [muted, "Block median", `${n(median[i])} sat/vB`],
+      [ink, "Market rate", market[i] === null ? "–" : `${n(market[i])} sat/vB`],
+      ...(at ? [[violet, `Batch ${n(at.n)}, attempt ${n(at.attempt)}${at.confirmed ? ", confirms" : ""}`, `${n(at.rate)} sat/vB`]] : []),
+    ]);
+  });
+  f.root.addEventListener("pointerleave", () => {
+    cross.setAttribute("opacity", 0);
+    hideTip();
+  });
+  f.root.addEventListener("click", (e) => {
+    const i = index(e);
+    const at = flightAt[i];
+    const next = bs.find((b) => b.confirmed >= first + i);
+    select(at ? at.n : next ? next.n : bs.length + 1);
+  });
+  host.replaceChildren(f.root);
+  $("legendE").replaceChildren(
+    el("span", {}, el("i", { class: "swatch", style: `background:${muted}; height:2px; vertical-align:3px` }), "Block median"),
+    el("span", {}, el("i", { class: "swatch", style: `background:${ink}; height:2px; vertical-align:3px` }), "Market rate, the most of the last six medians"),
+    el("span", {}, el("i", { class: "swatch", style: `background:${violet}; height:2px; vertical-align:3px` }), "Each batch's attempts, until it confirms"),
+  );
+  charts.push({
+    place: (v) => {
+      const x = flights.find((y) => y.n === v);
+      if (!x) return band.setAttribute("opacity", 0);
+      const x0 = xh(x.attempts[0].broadcastAt);
+      const x1 = xh(x.end);
+      band.setAttribute("x", Math.min(x0, x1 - 2));
+      band.setAttribute("width", Math.max(4, x1 - x0 + 4));
+      band.setAttribute("opacity", 1);
+    },
+  });
+}
+function renderCharts() {
+  charts.length = 0;
+  const bs = result.batches;
+  const hostA = $("chartA");
+  const hostB = $("chartB");
+  const hostC = $("chartC");
+  const hostD = $("chartD");
+  renderMarketChart();
+  if (!bs.length) {
+    for (const host of [hostA, hostB, hostC, hostD]) host.replaceChildren(el("p", { class: "empty", text: "No batch to plot." }));
+    $("legendA").replaceChildren();
+    $("legendC").replaceChildren();
+    return;
+  }
+  const spendable = [bs[0].poolBefore, ...bs.map((b) => b.spendableAfter)];
+  const unspendable = [bs[0].unspendableBefore, ...bs.map((b) => b.unspendableAfter)];
+  const ink = css("--ink");
+  const muted = css("--ink-3");
+  $("legendA").replaceChildren(el("span", {}, el("i", { class: "swatch", style: `background:${ink}; height:2px; vertical-align:3px` }), "Spendable"), el("span", {}, el("i", { class: "swatch", style: `background:${muted}; height:2px; vertical-align:3px` }), "Under 5,800 sats or immature"));
+  const fa = frame(hostA, { yMax: Math.max(...spendable, ...unspendable, 1), xCount: spendable.length });
+  fa.root.setAttribute("aria-label", "Spendable and unspendable vault outputs after each batch");
+  fa.root.append(svg("path", { d: stepPath(fa, unspendable), fill: "none", stroke: muted, "stroke-width": 2, "stroke-linejoin": "round" }));
+  fa.root.append(svg("path", { d: stepPath(fa, spendable), fill: "none", stroke: ink, "stroke-width": 2, "stroke-linejoin": "round" }));
+  const endLabel = svg("text", { class: "reflabel", x: fa.x(spendable.length - 1), y: fa.y(spendable[spendable.length - 1]) - 8, "text-anchor": "end" });
+  endLabel.textContent = `${n(spendable[spendable.length - 1])} spendable`;
+  fa.root.append(endLabel);
+  attachHover(hostA, fa, spendable.length, false, (i) => [i === 0 ? "Before batch 1" : `After batch ${i}`, [[ink, "Spendable", n(spendable[i])], [muted, "Not spendable", n(unspendable[i])]]]);
+
+  const flow = [0, ...bs.map((b) => b.flowBalance)];
+  const balance = [0, ...bs.map((b) => b.balance)];
+  $("legendD").replaceChildren(el("span", {}, el("i", { class: "swatch", style: `background:${ink}; height:2px; vertical-align:3px` }), "Less payment fees"), el("span", {}, el("i", { class: "swatch", style: `background:${muted}; height:2px; vertical-align:3px` }), "Less all fees, consolidation included"));
+  const fd = frame(hostD, { yMax: Math.max(0, ...flow, ...balance), yMin: Math.min(0, ...flow, ...balance), xCount: balance.length });
+  fd.root.setAttribute("aria-label", "Deductions of paid withdrawals less payment fees, and less all fees, after each batch");
+  fd.root.append(svg("path", { d: stepPath(fd, balance), fill: "none", stroke: muted, "stroke-width": 2, "stroke-linejoin": "round" }));
+  fd.root.append(svg("path", { d: stepPath(fd, flow), fill: "none", stroke: ink, "stroke-width": 2, "stroke-linejoin": "round" }));
+  const last = flow[flow.length - 1];
+  // The line leaves the zero line at its right end unless the run ends near break-even.
+  const endClear = Math.abs(fd.y(last) - fd.y(0)) > 24;
+  const even = svg("text", { class: "reflabel", x: endClear ? fd.width - fd.m.r - 90 : fd.m.l + 6, y: fd.y(0) - 6, "text-anchor": "end" });
+  even.setAttribute("text-anchor", endClear ? "end" : "start");
+  even.textContent = "break-even";
+  fd.root.append(even);
+  const endBalance = svg("text", { class: "reflabel", x: fd.x(balance.length - 1), y: fd.y(last) + (last >= 0 ? -8 : 16), "text-anchor": "end" });
+  endBalance.textContent = `${signed(last)} sats after payment fees`;
+  fd.root.append(endBalance);
+  attachHover(hostD, fd, balance.length, false, (i) => [
+    i === 0 ? "Before batch 1" : `After batch ${i}`,
+    [
+      [ink, "Less payment fees", signed(flow[i])],
+      [muted, "Less all fees", signed(balance[i])],
+      [null, "Deductions so far", n(i ? bs[i - 1].deductedSoFar : 0)],
+      [null, "Payment fees so far", n(i ? bs[i - 1].paymentFeesSoFar : 0)],
+      [null, "All fees so far", n(i ? bs[i - 1].feesSoFar : 0)],
+    ],
+  ]);
+
+  const budget = bs.map((b) => b.budget);
+  const violet = css("--k-budget");
+  const full = CONSOLIDATION_FLOOR + feeMax(MAX_BATCH_VSIZE);
+  const fb = frame(hostB, { yMax: Math.max(...budget, full * 1.05), xCount: bs.length, band: true });
+  fb.root.setAttribute("aria-label", "Fee budget at each batch's anchor");
+  // Reference lines too close for two labels share one.
+  const apart = fb.y(CONSOLIDATION_FLOOR) - fb.y(full) >= 16;
+  const refs = apart
+    ? [[CONSOLIDATION_FLOOR, "consolidation floor"], [full, "floor + a full batch at 100 sat/vB"]]
+    : [[CONSOLIDATION_FLOOR, ""], [full, "1M floor, and 2M with a full batch at 100 sat/vB"]];
+  for (const [value, text] of refs) {
+    fb.root.append(svg("line", { class: "ref", x1: fb.m.l, x2: fb.width - fb.m.r, y1: fb.y(value), y2: fb.y(value) }));
+    if (!text) continue;
+    const label = svg("text", { class: "reflabel", x: fb.width - fb.m.r, y: fb.y(value) - 5, "text-anchor": "end" });
+    label.textContent = text;
+    fb.root.append(label);
+  }
+  let d = "";
+  budget.forEach((v, i) => (d += `${i ? "L" : "M"}${fb.x(i)},${fb.y(Math.max(0, v))}`));
+  fb.root.append(svg("path", { d, fill: "none", stroke: violet, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+  if (bs.length <= 60) for (let i = 0; i < bs.length; i++) fb.root.append(svg("circle", { cx: fb.x(i), cy: fb.y(Math.max(0, budget[i])), r: 3.5, fill: violet, stroke: css("--surface-solid"), "stroke-width": 2 }));
+  attachHover(hostB, fb, bs.length, true, (i) => [`Batch ${i + 1} · anchor ${n(bs[i].anchor)}`, [[violet, "Budget", n(bs[i].budget)], [null, "Fee at 100 sat/vB", n(feeMax(bs[i].vsize))], [null, "Fee paid", n(bs[i].fee)]]]);
+
+  const used = KINDS.filter((k) => bs.some((b) => b.byKind[k.key]));
+  $("legendC").replaceChildren(...used.map((k) => el("span", {}, el("i", { class: "swatch", style: `background: var(${k.css})` }), k.label)));
+  const fc = frame(hostC, { yMax: Math.max(...bs.map((b) => b.inputs.length), 1), xCount: bs.length, band: true });
+  fc.root.setAttribute("aria-label", "Inputs per batch by kind");
+  const slot = fc.inner / bs.length;
+  const barWidth = Math.max(1, Math.min(24, slot - 2));
+  const gap = slot > 6 ? 2 : 0;
+  bs.forEach((b, i) => {
+    let base = 0;
+    const segments = used.filter((k) => b.byKind[k.key]);
+    segments.forEach((k, s) => {
+      const value = b.byKind[k.key];
+      const y0 = fc.y(base);
+      const y1 = fc.y(base + value);
+      const h = Math.max(0, y0 - y1 - (s ? gap : 0));
+      const top = s === segments.length - 1 && barWidth >= 8;
+      const x0 = fc.x(i) - barWidth / 2;
+      if (top && h > 4) {
+        const r = 4;
+        fc.root.append(svg("path", { d: `M${x0},${y0 - (s ? gap : 0)}V${y1 + r}Q${x0},${y1} ${x0 + r},${y1}H${x0 + barWidth - r}Q${x0 + barWidth},${y1} ${x0 + barWidth},${y1 + r}V${y0 - (s ? gap : 0)}Z`, fill: `var(${k.css})` }));
+      } else fc.root.append(svg("rect", { x: x0, y: y1, width: barWidth, height: h, fill: `var(${k.css})` }));
+      base += value;
+    });
+  });
+  attachHover(hostC, fc, bs.length, true, (i) => [`Batch ${i + 1} · ${n(bs[i].inputs.length)} inputs, ${n(bs[i].payouts.length)} payouts`, used.filter((k) => bs[i].byKind[k.key]).map((k) => [css(k.css), k.label, n(bs[i].byKind[k.key])])]);
+  highlightCharts();
+}
+const highlightCharts = () => charts.forEach((c) => c.place(view));
+
+// --- the table ------------------------------------------------------------------------
+function renderTable() {
+  const table = $("table");
+  const head = el("thead", {}, el("tr", {}, ...["Batch", "Anchor", "Confirmed", "Rate", "Attempts", "Kind", "Inputs", "Payouts", "Withdrawals", "Fee", "Of it, fill", "Of it, rescue", "Deductions", "After payment fees", "After all fees", "Budget", "Spendable after", "Longest wait"].map((h, i) => el("th", { class: i === 5 || i === 8 ? "l" : "", text: h }))));
+  const body = el(
+    "tbody",
+    {},
+    ...result.batches.map((b) =>
+      el(
+        "tr",
+        { "data-n": b.n, onclick: () => select(b.n) },
+        el("td", { text: n(b.n) }),
+        el("td", { text: n(b.anchor) }),
+        el("td", { text: n(b.confirmed) }),
+        el("td", { text: b.rate === b.rate0 ? n(b.rate) : `${n(b.rate0)} → ${n(b.rate)}` }),
+        el("td", { text: n(b.attempts.length) }),
+        el("td", { class: "l k", text: KIND_TEXT[b.kind] }),
+        el("td", { text: n(b.inputs.length) }),
+        el("td", { text: n(b.payouts.length) }),
+        el("td", { class: "l", text: b.payouts.length ? ranges(b.payouts.map((p) => p.index)) : "–" }),
+        el("td", { text: n(b.fee) }),
+        el("td", { text: n(b.fillFee) }),
+        el("td", { text: n(b.rescueFee) }),
+        el("td", { text: n(b.deductions) }),
+        el("td", { text: signed(b.flowBalance) }),
+        el("td", { text: signed(b.balance) }),
+        el("td", { text: n(b.budget) }),
+        el("td", { text: n(b.spendableAfter) }),
+        el("td", { text: b.payouts.length ? n(b.waitMax) : "–" }),
+      ),
+    ),
+  );
+  table.replaceChildren(head, body);
+  if (!result.batches.length) table.append(el("caption", { class: "empty", text: "No batch was derived." }));
+  highlightTable();
+}
+function highlightTable() {
+  for (const row of document.querySelectorAll("#table tbody tr")) row.classList.toggle("on", Number(row.dataset.n) === view);
+  const on = document.querySelector("#table tbody tr.on");
+  const wrap = document.querySelector(".tablewrap");
+  if (on && wrap) {
+    const head = wrap.querySelector("thead").offsetHeight;
+    if (on.offsetTop < wrap.scrollTop + head) wrap.scrollTop = on.offsetTop - head;
+    else if (on.offsetTop + on.offsetHeight > wrap.scrollTop + wrap.clientHeight) wrap.scrollTop = on.offsetTop + on.offsetHeight - wrap.clientHeight;
+  }
+}
+
+let resizeTimer = null;
+addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    renderMap();
+    renderCharts();
+  }, 150);
+});
+
+renderEditor();
+matchPreset();
+run();
+
+</script>
+</body>
+</html>
